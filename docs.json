@@ -1,0 +1,44 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Polar Handbook",
+  "favicon": "/images/favicon.png",
+  "logo": {
+    "light": "/images/light.png",
+    "dark": "/images/dark.png"
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "colors": {
+    "primary": "#000",
+    "light": "#fff",
+    "dark": "#000"
+  },
+  "background": {
+    "color": {
+      "dark": "#131316"
+    }
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Company",
+        "pages": ["company/about-polar"]
+      },
+      {
+        "group": "Working at Polar",
+        "pages": [
+          "working-at-polar/introduction",
+          "working-at-polar/onboarding",
+          "working-at-polar/how-we-work",
+          "working-at-polar/recruitment-process"
+        ]
+      },
+      {
+        "group": "Engineering",
+        "pages": ["engineering/introduction"]
+      }
+    ]
+  }
+}
