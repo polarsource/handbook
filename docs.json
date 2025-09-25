@@ -20,6 +20,10 @@
       "dark": "#131316"
     }
   },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true
+  },
   "navigation": {
     "groups": [
       {
@@ -37,7 +41,16 @@
       },
       {
         "group": "Engineering",
-        "pages": ["engineering/introduction"]
+        "pages": [
+          "engineering/introduction",
+{
+            "group": "Design Documents",
+            "pages": [
+              "engineering/design-documents",
+              "engineering/design-documents/seat-based-pricing"
+            ]
+          }
+        ]
       }
     ]
   }
