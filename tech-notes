@@ -292,6 +292,9 @@ create_new_note() {
     # Get current date
     local current_date=$(date +%Y-%m-%d)
 
+    # Format date for display
+    local formatted_date=$(date -j -f "%Y-%m-%d" "$current_date" "+%B %d, %Y" 2>/dev/null || echo "$current_date")
+
     # Create the file
     cat > "$filename" << NOTE
 ---
@@ -303,6 +306,10 @@ $([ -n "$tags_yaml" ] && echo "$tags_yaml")
 ---
 
 # $title
+
+<Info>
+**Author:** $author • **Published:** $formatted_date
+</Info>
 
 $description
 
