@@ -50,10 +50,7 @@
               "engineering/design-documents/seat-based-pricing"
             ]
           },
-          {
-            "group": "Tech Notes",
-            "pages": ["engineering/tech-notes/worker-memory-leak"]
-          }
+          "engineering/tech-notes"
         ]
       }
     ]
