@@ -26,4 +26,6 @@ On-call: Pieter Beulque
 
 - Updated Tailwind to v4
 - Updated Next.js to v15 (and so, also React to v19). This was a bit scary, since we don't have good front-end tests, so we'll have to monitor Sentry closely for a while.
+  - As part of the React 19 migration, I removed all `forwardRef` calls since that's deprecated syntax. Things look like they're working, but if some interactive element or an infinite scroll or sth stopped working, this is probably related.
+  - On October 1st, I noticed we hit a lot of 429's since the upgrade to Next.js 15. Our hypothesis is that the `/ingest` routes (for Posthog) started running the middleware before executing (even though this isn't documented new behavior in Next.js 15), so I added `ingest` to the ignored paths regex for that middleware.
 - Fixed the tests & CI on `polar-adapters`
