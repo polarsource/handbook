@@ -16,16 +16,17 @@ On-call: Pieter Beulque
 
 ### Ongoing issues
 
-- Rishi asked me to look into the Nuxt adapter, I still have to set up a reproduction.
+_None_
 
 ### Resolved issues
 
 - Updated the JS SDK & adapters to fix a few bugs, mainly with our Better Auth adapter and Vite builds. It's hard to test locally (I may take a shot at improving this if I have some time this week), but I think I squashed the most blocking bugs.
+- On October 1st, I noticed we hit a lot of 429's since the upgrade to Next.js 15. Our hypothesis is that the `/ingest` routes (for Posthog) started running the middleware before executing (even though this isn't documented new behavior in Next.js 15), so I added `ingest` to the ignored paths regex for that middleware.
 
 ### Maintenance
 
 - Updated Tailwind to v4
 - Updated Next.js to v15 (and so, also React to v19). This was a bit scary, since we don't have good front-end tests, so we'll have to monitor Sentry closely for a while.
   - As part of the React 19 migration, I removed all `forwardRef` calls since that's deprecated syntax. Things look like they're working, but if some interactive element or an infinite scroll or sth stopped working, this is probably related.
-  - On October 1st, I noticed we hit a lot of 429's since the upgrade to Next.js 15. Our hypothesis is that the `/ingest` routes (for Posthog) started running the middleware before executing (even though this isn't documented new behavior in Next.js 15), so I added `ingest` to the ignored paths regex for that middleware.
+- Updated Rechars to v3
 - Fixed the tests & CI on `polar-adapters`
