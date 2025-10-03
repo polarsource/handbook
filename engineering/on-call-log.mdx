@@ -22,7 +22,7 @@ On-call: Pieter Beulque
 
 **Timeline**
 
-- 18:00: A merchant starts to trigger 200–250 calls per minute (up from ± 15 per minute max), mostly for the same customer
+- 18:00: A merchant starts to trigger 200–250 event ingestion calls per minute (up from ± 15 per minute max), mostly for the same customer
 - 18:00: For that smae customer, `customer_meter.update_customer` jobs starts to fill the queue
 - 18:07: First "Unable to obtain lock" error in Sentry for that `customer_meter.update_customer` job
 - 19:48: Outgoing webhooks start to fail to deliver, triggers monitoring
@@ -40,6 +40,8 @@ A combination of a lot of events for a single customer, queuing a lot of `custom
 This impact was further amplified by the fact that the worker priority queue's in Dramatiq aren't respected with Redis as your broker, effectively falling back to a FIFO queue.
 
 **Mitigations**
+
+200-250 event ingestion calls per minute are reasonable, so we should support that.
 
 As an immediate fix for the issue: we're updating our logic so that frequent `customer_meter.update_customer` calls are deduped.
 
