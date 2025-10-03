@@ -18,18 +18,22 @@ On-call: Pieter Beulque
 
 #### 2025-10-02T19:48
 
-**Summary**: delayed processing of background jobs because of a pile-up of failing jobs.
+**Summary**
+
+Delayed processing of background jobs because of a pile-up of failing jobs between 18:00 and 21:00 UTC.
+This caused delays of up to one hour for payment processing across all merchants, but all jobs were eventually picked up and handled.
+No orders or other data was lost.
 
 **Timeline**
 
 - 18:00: A merchant starts to trigger 200–250 event ingestion calls per minute (up from ± 15 per minute max), mostly for the same customer
-- 18:00: For that smae customer, `customer_meter.update_customer` jobs starts to fill the queue
+- 18:00: For that same customer, `customer_meter.update_customer` jobs starts to fill the queue
 - 18:07: First "Unable to obtain lock" error in Sentry for that `customer_meter.update_customer` job
 - 19:48: Outgoing webhooks start to fail to deliver, triggers monitoring
 - 20:05: Worker is restarted with no effect
 - 20:16: Problem is pinpointed to peak in `customer_meter.update_customer` jobs
-- 20:18: Number of processes/threads of the worker increased with no effect
-- 20:32: Patch deployed for task `customer_meter.update_customer` to skips retries and exits early if lock is occupied
+- 20:18: [Number of processes/threads of the worker increased](https://github.com/polarsource/polar/commit/61e5f973ab46c55b1c11a9da744695b760884ad5) with no effect
+- 20:32: [Patch deployed for task `customer_meter.update_customer` to skips retries and exits early if lock is occupied](https://github.com/polarsource/polar/commit/a67530c3d169920fdbad7fc9437bea94d88b9b96)
 - 20:38: Worker queue starts to decrease
 - 21:00: Incident over, backlog processed
 
@@ -43,9 +47,9 @@ This impact was further amplified by the fact that the worker priority queue's i
 
 200-250 event ingestion calls per minute are reasonable, so we should support that.
 
-As an immediate fix for the issue: we're updating our logic so that frequent `customer_meter.update_customer` calls are deduped.
+As an immediate fix for the issue: [we're updating our logic so that frequent `customer_meter.update_customer` calls are deduped](https://github.com/polarsource/polar/issues/7146).
 
-We are also looking into another way to set up a high-priority queue now that we've learned that Dramatiq's built-in priority does nothing on Redis.
+We are also looking into another way to set up a [high-priority queue](https://github.com/polarsource/polar/issues/7149) now that we've learned that Dramatiq's built-in priority does nothing on Redis.
 
 
 ### Ongoing issues
