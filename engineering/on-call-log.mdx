@@ -1,0 +1,70 @@
+---
+title: "On-call log"
+description: "A rolling log of on-call incidents and resolutions"
+---
+
+# On-call log
+
+Every week, another engineer will be on-call. They will be responsible for responding to alerts and incidents.
+When everything is running smoothly, the on-call engineer can handle maintenance tasks like updating dependencies, fixing bugs, and improving the codebase.
+
+The goal of this rolling log is to ease handover between on-call for unresolved issues, and keep a log of what's been handled recently.
+
+## Week of 2025-09-29
+
+On-call: Pieter Beulque
+
+### Incidents
+
+#### 2025-10-02T19:48
+
+**Summary**
+
+Delayed processing of background jobs because of a pile-up of failing jobs between 18:00 and 21:00 UTC.
+This caused delays of up to one hour for payment processing across all merchants, but all jobs were eventually picked up and handled.
+No orders or other data was lost.
+
+**Timeline**
+
+- 18:00: A merchant starts to trigger 200–250 event ingestion calls per minute (up from ± 15 per minute max), mostly for the same customer
+- 18:00: For that same customer, `customer_meter.update_customer` jobs starts to fill the queue
+- 18:07: First "Unable to obtain lock" error in Sentry for that `customer_meter.update_customer` job
+- 19:48: Outgoing webhooks start to fail to deliver, triggers monitoring
+- 20:05: Worker is restarted with no effect
+- 20:16: Problem is pinpointed to peak in `customer_meter.update_customer` jobs
+- 20:18: [Number of processes/threads of the worker increased](https://github.com/polarsource/polar/commit/61e5f973ab46c55b1c11a9da744695b760884ad5) with no effect
+- 20:32: [Patch deployed for task `customer_meter.update_customer` to skips retries and exits early if lock is occupied](https://github.com/polarsource/polar/commit/a67530c3d169920fdbad7fc9437bea94d88b9b96)
+- 20:38: Worker queue starts to decrease
+- 21:00: Incident over, backlog processed
+
+**Root cause**
+
+A combination of a lot of events for a single customer, queuing a lot of `customer_meter.update_customer` jobs, combined with that job setting a lock with a long grace period of 5 seconds and the default of 20 retries. This eventually lead to a pile-up of failed jobs waiting to retry and a thundering herd of these jobs ready to run whenever a worker process was available. As these new events came in and failed events queued retries, more and more of the available worker capacity was spend on this failing job (waiting for 5 seconds to obtain the lock), causing other, higher priority workers to stall. 
+
+This impact was further amplified by the fact that the worker priority queue's in Dramatiq aren't respected with Redis as your broker, effectively falling back to a FIFO queue.
+
+**Mitigations**
+
+200-250 event ingestion calls per minute are reasonable, so we should support that.
+
+As an immediate fix for the issue: [we're updating our logic so that frequent `customer_meter.update_customer` calls are deduped](https://github.com/polarsource/polar/issues/7146).
+
+We are also looking into another way to set up a [high-priority queue](https://github.com/polarsource/polar/issues/7149) now that we've learned that Dramatiq's built-in priority does nothing on Redis.
+
+
+### Ongoing issues
+
+- Investigating random 500's and white screens of death on some pages that look related to Vercel / Next.js SSR not being able to reach our API.
+
+### Resolved issues
+
+- Updated the JS SDK & adapters to fix a few bugs, mainly with our Better Auth adapter and Vite builds. It's hard to test locally (I may take a shot at improving this if I have some time this week), but I think I squashed the most blocking bugs.
+- On October 1st, I noticed we hit a lot of 429's since the upgrade to Next.js 15. Our hypothesis is that the `/ingest` routes (for Posthog) started running the middleware before executing (even though this isn't documented new behavior in Next.js 15), so I added `ingest` to the ignored paths regex for that middleware.
+
+### Maintenance
+
+- Updated Tailwind to v4
+- Updated Next.js to v15 (and so, also React to v19). This was a bit scary, since we don't have good front-end tests, so we'll have to monitor Sentry closely for a while.
+  - As part of the React 19 migration, I removed all `forwardRef` calls since that's deprecated syntax. Things look like they're working, but if some interactive element or an infinite scroll or sth stopped working, this is probably related.
+- Updated Rechars to v3
+- Fixed the tests & CI on `polar-adapters`
