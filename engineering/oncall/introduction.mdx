@@ -1,0 +1,30 @@
+---
+title: "On-Call Procedures"
+description: "Manual procedures and troubleshooting guide for on-call engineers"
+---
+
+This guide contains manual procedures that on-call engineers may need to perform. These are operations that cannot be automated or require manual intervention due to their sensitive nature.
+
+## Available Procedures
+
+<CardGroup cols={2}>
+  <Card title="Merge Accounts" icon="user-group" href="/engineering/oncall/merge-accounts">
+    Merge multiple merchant accounts when orders are split across accounts
+  </Card>
+
+  <Card title="Deploy Infra Changes" icon="server" href="/engineering/oncall/deploy-infra">
+    Sync infrastructure changes via Render blueprint
+  </Card>
+
+  <Card title="Trigger Webhooks" icon="webhook" href="/engineering/oncall/trigger-webhooks">
+    Manually trigger missed or failed webhooks
+  </Card>
+</CardGroup>
+
+
+## Safety Guidelines
+
+- Double-check account IDs, transaction IDs, and other identifiers before executing queries
+- Test queries on staging environment when possible
+- Document all manual operations in the on-call log
+- Notify the team after performing manual operations

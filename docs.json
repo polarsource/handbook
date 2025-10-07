@@ -50,7 +50,16 @@
               "engineering/design-documents/seat-based-pricing"
             ]
           },
-          "engineering/tech-notes"
+          "engineering/tech-notes",
+          {
+            "group": "On-Call Procedures",
+            "pages": [
+              "engineering/oncall/introduction",
+              "engineering/oncall/merge-accounts",
+              "engineering/oncall/deploy-infra",
+              "engineering/oncall/trigger-webhooks"
+            ]
+          }
         ]
       }
     ]
