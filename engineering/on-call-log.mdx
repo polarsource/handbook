@@ -10,6 +10,13 @@ When everything is running smoothly, the on-call engineer can handle maintenance
 
 The goal of this rolling log is to ease handover between on-call for unresolved issues, and keep a log of what's been handled recently.
 
+## Week of 2025-10-06
+
+On-call: Petru Rares Sincraian
+
+**New high_priority worker**
+I updated the render.yaml file to add a new worker to process only the messages from the high_priority queue. This is one of the tasks from the postmortem.
+
 ## Week of 2025-09-29
 
 On-call: Pieter Beulque
@@ -39,7 +46,7 @@ No orders or other data was lost.
 
 **Root cause**
 
-A combination of a lot of events for a single customer, queuing a lot of `customer_meter.update_customer` jobs, combined with that job setting a lock with a long grace period of 5 seconds and the default of 20 retries. This eventually lead to a pile-up of failed jobs waiting to retry and a thundering herd of these jobs ready to run whenever a worker process was available. As these new events came in and failed events queued retries, more and more of the available worker capacity was spend on this failing job (waiting for 5 seconds to obtain the lock), causing other, higher priority workers to stall. 
+A combination of a lot of events for a single customer, queuing a lot of `customer_meter.update_customer` jobs, combined with that job setting a lock with a long grace period of 5 seconds and the default of 20 retries. This eventually lead to a pile-up of failed jobs waiting to retry and a thundering herd of these jobs ready to run whenever a worker process was available. As these new events came in and failed events queued retries, more and more of the available worker capacity was spend on this failing job (waiting for 5 seconds to obtain the lock), causing other, higher priority workers to stall.
 
 This impact was further amplified by the fact that the worker priority queue's in Dramatiq aren't respected with Redis as your broker, effectively falling back to a FIFO queue.
 
