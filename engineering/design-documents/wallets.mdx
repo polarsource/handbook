@@ -15,13 +15,13 @@ In this new era of AI-based apps, usage-based billing is becoming the new standa
 
 While this approach is working well technically, we haven't seen lot of adoption, especially from startups and small business. The main drawback is that "pure" usage-based billing can be frightening and unpredictable for the customer. Internet is full of stories of customers being surprised by a crazy high bill at the end of the month. Besides, it can also be a risk for merchants, as a customer could accrue a large amount of usage in a cycle, and then not being able to pay the invoice, leading to a loss of revenue.
 
-That's why lot of businesses, including AI leaders like OpenAI and Anthropic, are proposing a credits balance approach: customers pre-pay for credits, and then the usage is deducted from the balance. This way, customers can control their spending and avoid surprises. It also reduces the risk for merchants, as they get paid upfront.
+That's why lot of businesses, including AI leaders like OpenAI and Anthropic, are proposing a cash balance approach: customers pre-pay to top-up their balance, and then the usage is deducted from the balance. This way, customers can control their spending and avoid surprises. It also reduces the risk for merchants, as they get paid upfront.
 
-In this document, we'll explore how we can implement a credits balance system in Polar, and how it can complement our existing usage-based billing system. We call that **Wallets**.
+In this document, we'll explore how we can implement a cash balance system in Polar, and how it can complement our existing usage-based billing system. We call that **Wallets**.
 
 ## Goals
 
-- Customers on an Organization should be able to have a Wallet with a balance of credits.
+- Customers on an Organization should be able to have a Wallet with a cash balance.
 - Customers should be able to top-up their Wallet using their credit card or other payment methods.
 - Customers should be able to enable an option to auto top-up their Wallet when the balance goes below a threshold.
 - Customers should be able to use their Wallet balance to pay for usage.
@@ -42,7 +42,7 @@ This opens up the possibility to handle complex pricing schemes, like a fixed pr
 
 A customer signs up on a merchant's app. Using the API, the merchant creates a Customer on Polar and creates a subscription for their usage-based product. A new Wallet is created for the Customer, with a 0 balance.
 
-To top-up the Wallet, the merchant redirects the Customer to the Polar's Customer Portal. From there, the Customer can add a payment method and top-up their Wallet with a desired amount of credits. The Customer can top-up as many times as they want, and the balance is cumulative. Each top-up creates an Order in the merchant's Organization, and the funds are transferred to the Organization's Account, minus Polar fees.
+To top-up the Wallet, the merchant redirects the Customer to the Polar's Customer Portal. From there, the Customer can add a payment method and top-up their Wallet with a desired amount of money. The Customer can top-up as many times as they want, and the balance is cumulative. Each top-up creates an Order in the merchant's Organization, and the funds are transferred to the Organization's Account, minus Polar fees.
 
 When the Customer uses the merchant's app, the app tracks the usage and reports it to Polar using the Event Ingestion API. Polar deducts the cost of the usage from the Customer's Wallet balance. We inform the merchant of the new balance using a webhook.
 
@@ -50,7 +50,7 @@ We don't try to have any kind of blocking in case of low balance. It's up to the
 
 ### Refunds & Disputes
 
-It's likely that some Customers will want to have a refund for a top-up they made. It's a bit tricky here as the Customer may have already consumed some of the credits. Same thing for disputes.
+It's likely that some Customers will want to have a refund for a top-up they made. It's a bit tricky here as the Customer may have already consumed some of their balance. Same thing for disputes.
 
 <OpenQuestion>
   My proposal is to allow refunds in the limit of the current balance. For
@@ -62,8 +62,9 @@ For disputes, I think the only solution is to take back the full amount from the
 
 <OpenQuestion>
   This opens up the possibility for a malicious Customer to dispute all their
-  top-ups, even if they consumed a lot of credits. We could consider a mechanism
-  where the merchant could "block" a Customer from making further top-ups.
+  top-ups, even if they consumed a lot of their balance. We could consider a
+  mechanism where the merchant could "block" a Customer from making further
+  top-ups.
 </OpenQuestion>
 
 ## Implementation details
@@ -120,7 +121,7 @@ Therefore, we'll introduce a new `wallet_transaction_id` field on the Billing En
 
 #### Insufficient balance
 
-The second problem is when the Wallet balance is insufficient to pay for the Billing Entry. We don't want to go negative, as it would defeat the purpose of pre-paid credits.
+The second problem is when the Wallet balance is insufficient to pay for the Billing Entry. We don't want to go negative, as it would defeat the purpose of pre-paid balance.
 
 <OpenQuestion>
   My proposal is to cover as much as possible of the Billing Entry with the
