@@ -1,3 +1,5 @@
+import { OpenQuestion } from "/snippets/open-question.jsx";
+
 <Info>
   **Status**: Draft
 
@@ -54,14 +56,12 @@ Currently, the only way to create a Subscription is to go take the Customer thro
 
 We'll introduce a Subscription create API endpoint allowing the merchant to programmatically create a Subscription for a Customer. This way, we can create the Wallet and start to track Billing Entries for the Customer usage.
 
-<Callout icon="circle-question" color="#FFC107">
-  **Open Question**
-
+<OpenQuestion>
 How should we treat Product including a fixed price? In the case of a new Customer, we won't have any Payment Method to pay the initial cycle.
 
 Stripe's approach is simply to reject the creation of the Subscription if there's no Payment Method. If we do this, the Customer will have to go through a Checkout, as we do today.
 
-</Callout>
+</OpenQuestion>
 
 ### Wallet model
 
@@ -104,9 +104,9 @@ Therefore, we'll introduce a new `wallet_transaction_id` field on the Billing En
 
 The second problem is when the Wallet balance is insufficient to pay for the Billing Entry. We don't want to go negative, as it would defeat the purpose of pre-paid credits.
 
-<Callout icon="circle-question" color="#FFC107">
-  **Open Question**
-
-My proposal is to cover as much as possible of the Billing Entry with the Wallet balance, and lose the rest. This way, we don't have to deal with negative balance, and the Customer can always top-up their Wallet to continue using the service.
-
-</Callout>
+<OpenQuestion>
+  My proposal is to cover as much as possible of the Billing Entry with the
+  Wallet balance, and lose the rest. This way, we don't have to deal with
+  negative balance, and the Customer can always top-up their Wallet to continue
+  using the service.
+</OpenQuestion>
