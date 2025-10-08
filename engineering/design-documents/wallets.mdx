@@ -48,7 +48,23 @@ When the Customer uses the merchant's app, the app tracks the usage and reports 
 
 We don't try to have any kind of blocking in case of low balance. It's up to the merchant to decide how to handle that, by estimating the cost of the usage before reporting it and compare it with the balance.
 
-## Implementation details
+### Refunds & Disputes
+
+It's likely that some Customers will want to have a refund for a top-up they made. It's a bit tricky here as the Customer may have already consumed some of the credits. Same thing for disputes.
+
+<OpenQuestion>
+  My proposal is to allow refunds in the limit of the current balance. For
+  example, if the Customer topped-up for \$100, and then used \$30, they can
+  only get a refund of up to \$70.
+</OpenQuestion>
+
+For disputes, I think the only solution is to take back the full amount from the merchant, and let them handle the situation with the Customer. The Wallet is then set to 0.
+
+<OpenQuestion>
+  This opens up the possibility for a malicious Customer to dispute all their
+  top-ups, even if they consumed a lot of credits. We could consider a mechanism
+  where the merchant could "block" a Customer from making further top-ups.
+</OpenQuestion>
 
 ### Subscription Create endpoint
 
@@ -75,7 +91,7 @@ Then, similar to our existing Account model, we'll also introduce a WalletTransa
 - A Wallet
 - A timestamp
 - An amount (in cents), positive or negative
-- A type (`top_up`, `usage`, `adjustment`)
+- A type (`top_up`, `usage`, `refund`, `dispute`)
 - A reference to the Order (for `top_up` type)
 
 Similar to Transaction, we should put great efforts in ensuring we can have the full overview of the Wallet from this single table: in particular, the balance should be easily computable by summing the amounts of all transactions.
@@ -110,3 +126,19 @@ The second problem is when the Wallet balance is insufficient to pay for the Bil
   negative balance, and the Customer can always top-up their Wallet to continue
   using the service.
 </OpenQuestion>
+
+### Wallet top-up
+
+We'll need a dedicated flow to top-up the wallet. This will be very similar to the existing Checkout flow, as it'll require to:
+
+- Collect a payment method
+- Collect billing details
+- Allow the Customer to choose the amount to top-up
+- Calculate taxes
+- Create an Order to track the payment and transfer the funds to the merchant's Account
+
+### Refunds
+
+Currently, when we issue a Refund, we take care of removing the amount from the merchant's Account balance. When refunding a Wallet top-up Order, we should also take care of removing the corresponding amount from the Wallet's balance.
+
+It means we'll likely need a mechanism to track a Wallet from a given Order. Currently, an Order is mandatory linked to a Product, but in this case, the Order won't be linked to any Product. We could introduce a nullable `wallet_id` field on the Order model, and make `product_id` nullable.
