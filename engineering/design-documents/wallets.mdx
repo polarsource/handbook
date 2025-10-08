@@ -44,9 +44,22 @@ A customer signs up on a merchant's app. Using the API, the merchant creates a C
 
 To top-up the Wallet, the merchant redirects the Customer to the Polar's Customer Portal. From there, the Customer can add a payment method and top-up their Wallet with a desired amount of money. The Customer can top-up as many times as they want, and the balance is cumulative. Each top-up creates an Order in the merchant's Organization, and the funds are transferred to the Organization's Account, minus Polar fees.
 
-When the Customer uses the merchant's app, the app tracks the usage and reports it to Polar using the Event Ingestion API. Polar deducts the cost of the usage from the Customer's Wallet balance. We inform the merchant of the new balance using a webhook.
+When the Customer uses the merchant's app, the app tracks the usage and reports it to Polar using the Event Ingestion API. Polar deducts the cost of the usage from the Customer's Wallet balance.
 
 We don't try to have any kind of blocking in case of low balance. It's up to the merchant to decide how to handle that, by estimating the cost of the usage before reporting it and compare it with the balance.
+
+### Tracking the Wallets
+
+From the merchant's perspective, it's key to be able to track the Wallets of their Customers. We propose a few things:
+
+- From the dashboard, on a Customer page, we should have a **Wallet** tab showing the current balance and the transactions history.
+- From the API, we should have `/v1/wallets` endpoints to list/retrieve Wallets (with filters like `customer_id`, `balance_amount`...), and `/v1/wallets/{wallet_id}/transactions` to list the transactions of a Wallet. In the Wallet schema, we should directly have access to the current balance.
+- From the Customer State API and webhook, we should add a `wallets` field to list all the available Wallets for the Customer, with their current balance.
+- We should have `wallet.created`/`wallet.updated` webhooks to notify the merchant of changes to a Wallet, including balance changes.
+
+In the Customer Portal, we should also have the same kind of information/API so we can show the Customer their Wallet balance and transactions.
+
+The design implies that a Customer can have multiple Wallets. We suppose that in the future, we might want to support multiple currencies, or maybe have different Wallets for different purposes. Another idea would be to revamp our "Customer Balance" logic to use Wallets.
 
 ### Refunds & Disputes
 
