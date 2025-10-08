@@ -47,7 +47,8 @@
             "group": "Design Documents",
             "pages": [
               "engineering/design-documents",
-              "engineering/design-documents/seat-based-pricing"
+              "engineering/design-documents/seat-based-pricing",
+              "engineering/design-documents/wallets"
             ]
           },
           "engineering/tech-notes",
