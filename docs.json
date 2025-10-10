@@ -47,7 +47,9 @@
             "group": "Design Documents",
             "pages": [
               "engineering/design-documents",
-              "engineering/design-documents/seat-based-pricing"
+              "engineering/design-documents/seat-based-pricing",
+              "engineering/design-documents/prorations",
+              "engineering/design-documents/subscription-retries"
             ]
           },
           "engineering/tech-notes",
@@ -55,6 +57,7 @@
             "group": "On-Call Procedures",
             "pages": [
               "engineering/oncall/introduction",
+              "engineering/oncall/developer-faq",
               "engineering/oncall/merge-accounts",
               "engineering/oncall/deploy-infra",
               "engineering/oncall/trigger-webhooks"
