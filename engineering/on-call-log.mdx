@@ -17,6 +17,9 @@ On-call: Petru Rares Sincraian
 **New high_priority worker**
 I updated the render.yaml file to add a new worker to process only the messages from the high_priority queue. This is one of the tasks from the postmortem.
 
+**Bug on usage based when a proration happened**
+I fixed a bug where usage-based pricing was not correctly calculated when a proration happened. This mainly affected the max, min, average, and unique operations.
+
 ## Week of 2025-09-29
 
 On-call: Pieter Beulque
