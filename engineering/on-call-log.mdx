@@ -58,7 +58,6 @@ As an immediate fix for the issue: [we're updating our logic so that frequent `c
 
 We are also looking into another way to set up a [high-priority queue](https://github.com/polarsource/polar/issues/7149) now that we've learned that Dramatiq's built-in priority does nothing on Redis.
 
-
 ### Ongoing issues
 
 - Investigating random 500's and white screens of death on some pages that look related to Vercel / Next.js SSR not being able to reach our API.
@@ -75,3 +74,26 @@ We are also looking into another way to set up a [high-priority queue](https://g
   - As part of the React 19 migration, I removed all `forwardRef` calls since that's deprecated syntax. Things look like they're working, but if some interactive element or an infinite scroll or sth stopped working, this is probably related.
 - Updated Rechars to v3
 - Fixed the tests & CI on `polar-adapters`
+
+## Week of 2025-10-14
+
+On-call: François Voron
+
+### Incidents
+
+#### 2025-10-14T14:13
+
+**Summary**
+
+Webhooks monitor got down because of delayed webhooks sending. After checking, the reason is that we had a huge spike in `benefit.grant` task to process; because a very successful merchant added a new benefit on an exisiting product, effectively triggering the grant on all their historical customers.
+
+The incident resolved by itself 4 minutes later, when all the grants were processed and the rest of the queue could be processed, including pending webhooks.
+
+**Analysis**
+
+The root cause is similar to the one of the previous incident: a big spike of tasks filling up the queue, preventing other tasks to be processed in a timely manner. This time, however, the incident was much less impactful: with our _high-priority worker_ in place, very important tasks like payment processing were still processed in time. However, this poses the question of the priority of the webhooks. Should they be placed in the high priority queue? In their own queue?
+
+**Reference links**
+
+- `benefit.grant` spike: https://logfire-us.pydantic.dev/polar/production-worker?q=attributes-%3E%3E%27actor%27+%3D+%27benefit.grant%27+AND+attributes-%3E%27message%27-%3E%27kwargs%27-%3E%3E%27benefit_id%27+%3D+%27b6c1005f-cf98-4f3d-8fee-05498ce5fffe%27&since=2025-10-14T12%3A06%3A29.521Z&until=2025-10-14T12%3A18%3A14.482Z
+- High priority tasks being processed during the event: https://logfire-us.pydantic.dev/polar/production-worker?q=attributes-%3E%27message%27-%3E%3E%27queue_name%27+%3D+%27high_priority%27+AND+attributes-%3E%3E%27actor%27+%21%3D+%27eventstream.publish%27&since=2025-10-14T12%3A06%3A29.521Z&until=2025-10-14T12%3A18%3A14.482Z
