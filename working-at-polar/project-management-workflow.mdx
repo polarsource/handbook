@@ -4,140 +4,176 @@ description: "How we manage issues and projects using GitHub"
 ---
 
 ## Context
-We are using Linear and GitHub Issues to manage our own work. Team is not really happy about it, the main complains are:
 
-1. Unordered backlog. Support person doesn't know what needs to pick up.
-2. Lack of transparency: We need to be more transparent on our priorities and vision.
-3. Workflow inconsistency: People have different workflows inside the team.
-4. Tooling issues:
-	1. When viewing a Github Issues it's difficult to relate to Linear issues.
-	2. Different workflows with Linear and GitHub. We have a specific CI Action that closes GitHub issues if people is using that.
+We currently use both Linear and GitHub Issues to manage our work. The team has raised several concerns about this dual-system approach:
+
+1. **Unordered backlog**: The support person doesn't know which issues to prioritize.
+2. **Lack of transparency**: We need to be more transparent about our priorities and vision.
+3. **Workflow inconsistency**: Team members follow different workflows.
+4. **Tooling issues**:
+   - When viewing GitHub Issues, it's difficult to relate them to Linear issues.
+   - Linear and GitHub have different workflows. We have a CI action that automatically closes GitHub issues, which creates confusion.
+   - etc.
 
 ## Goals
-The goal of this document is to:
 
-1. Align the team under a single workflow.
-2. Track all issues, customer reported and internal, in one place.
-3. Have a prioritized backlog for support person.
-4. Maintain lightweight workflow.
-5. Engage the community: with a public roadmap and asking for votes
+This document aims to:
 
-## Preferred: Unify on GitHub
-To adress the team's concerns and meet our goals, we will deprecate our usage of Linear and consolidate all work tracking into GitHub using Issues and Projects.
+1. Align the team under a single workflow
+2. Track all issues (customer-reported and internal) in one place
+3. Create a prioritized backlog for the support person
+4. Maintain a lightweight workflow
+5. Engage the community with a public roadmap and voting system
 
-### The new workflow
-We will adopt a standardized workflow for each one of the 3 GitHub Projects: Support, Team, and Roadmap.
+## Solution: Unify on GitHub
 
-| **Project** | **Visibility** | **Purpose**                                                                                       |
-| ----------- | -------------- | ------------------------------------------------------------------------------------------------- |
-| **Support** | 🟢 Public      | For customer-facing issues: bugs, small feature requests, and support tickets                     |
-| **Team**    | 🔒 Private     | For internal tasks and engineering work. We will use 2 projects (Polar and Polar-Internal-Issues) |
-| **Roadmap** | 🟢 Public      | High-level features and initiatives we're delivering                                              |
+To address the team's concerns and meet our goals, we will deprecate Linear and consolidate all work tracking into GitHub using Issues and Projects.
 
-We will have 2 issue types:
-- **Feature** are big chunks of work that usually takes more than a week to pick, design, and implement.
-	- #votes-needed is a feature not yet planned
-	- #community-request is a feature asked by the community
-- **Task** is a deliverable that needs to be done. It can be a subissue of a feature or not. The tags that can have:
-	- #bug : an error in the system
-	- #support: a support task that customer requested help
-	- #votes-needed: is a small feature that hasn't been planned yet
-	- #community-request:is a feature asked by the community
-	- #contributor-friendly: tasks that the community can participate. Person on support should review them.
-- No type: new issues that needs to be triaged.
+### The New Workflow
 
-#### Workflow: Team Project
-The team project it's the one that we are gonna use every day as engineers and track our own initiatives and tasks. The idea of this project is to show:
+We will adopt a standardized workflow across three GitHub Projects: Support, Team, and Roadmap.
 
-1. The Feature and Tasks that we are working on.
-2. The backlog of remaining things to be done.
+| **Project** | **Visibility** | **Purpose**                                                                                     |
+| ----------- | -------------- | ----------------------------------------------------------------------------------------------- |
+| **Support** | 🟢 Public      | Customer-facing issues: bugs, small feature requests, and support tickets                       |
+| **Team**    | 🔒 Private     | Internal tasks and engineering work using two repositories (`polar` and `polar-internal`)    |
+| **Roadmap** | 🟢 Public      | High-level features and initiatives we're delivering                                            |
 
-We will have two type of issues mainly:
-1. Initiative: big features to be delivered like Wallet, Product Analytics, or Seats.
-2. Tasks: small features that we are working on.
+### Issue Types
 
-The responsibility of creating issues, prioritizing, and cleaning them it's on every engineer or lead of the initiative.
+We will use two primary issue types:
 
-Most of the issues will be public under `polarsource/polar` repository, but if if a private task or initiative should be created the task will be under `polarsource/polar-internal`.
+**Feature**
+- Large chunks of work that typically take more than a week to plan, design, and implement. Wallets, Product Analytics, Seats are some examples.
+- Tags:
+  - `#votes-needed` - Feature not yet planned
+  - `#community-request` - Feature requested by the community
 
-#### Workflow: Support
-Support it's more complex as it requires interaction with the community and they are not used to. But the idea is to start simple. At first we can categorize all the issues in 3:
+**Task**
+- A deliverable that needs to be completed. Can be a sub-issue of a feature or standalone
+- Tags:
+  - `#bug` - An error in the system
+  - `#support` - A support task where a customer requested help
+  - `#votes-needed` - A small feature that hasn't been planned yet
+  - `#community-request` - A feature requested by the community
+  - `#contributor-friendly` - Tasks the community can participate in (support person should review these)
 
-- **Bug**: Something is broken and needs fixing
-- **Feature Request**: A new capability or improvement
+**No type**
+- New issues that need to be triaged
+
+## Workflow: Team Project
+
+The Team project is what we'll use daily as engineers to track our initiatives and tasks. This project shows:
+
+1. Features and Tasks we are currently working on
+2. The backlog of remaining work
+
+**Responsibilities:**
+- Every engineer or initiative lead is responsible for creating issues, prioritizing them, and keeping them clean
+
+**Repositories:**
+- Most issues will be public under the `polarsource/polar` repository
+- Private tasks or initiatives should be created under `polarsource/polar-internal`
+
+## Workflow: Support
+
+The Support workflow is more complex as it requires community interaction. We'll start simple by categorizing all issues into three types:
+
+- **Bug**: Something is broken and needs fixing. We will use the `Task` type and the `bug` label.
+- **Feature Request**: A new capability or improvement. We will use the `Feature` or `Task` depending on the size, type and `vote-needed` label.
 - **Support**: A user needs help or guidance
 
-And this workflow is segregated in 5 different steps:
+### Support Process Steps
 
-**1. Triage**
+**Step 1: Triage**
 
-The **Support engineer** reviews every week:
+The support engineer reviews issues weekly and asks:
 
 - Is the issue clear?
 - Is it a Bug, Feature Request, or Support Ticket?
 - Does it already exist?
 
-If support: change the type to **Support** and move to **In Progress**
-If unclear → keep it in Triage until clarified or close it after 14 days.
-If clear:
-- And is feature: move to **Decision**.
-- Is bug:  Change the type to **Bug** tag and move to **Backlog**
+**Actions:**
+- If it's a support request: Change the type to **Support** and move to **In Progress**
+- If unclear: Keep it in Triage until clarified, or close it after 14 days
+- If clear and it's a feature: Move to **Discussion**
+- If clear and it's a bug: Change the type to **Bug** and move to **Backlog**
 
-**2. Discussion**
+**Step 2: Discussion**
 
-Discuss with the team if we should do them and the size (S 1 d, M 1 w, or L bigger)
+Discuss with the team whether we should implement it and estimate the size:
+- **S**: 1 day
+- **M**: 1 week (5 days)
+- **L**: Larger than a week
 
-Post the following slack message on #support
+Post the following Slack message in #support:
 
 ```
 🆕 New Issue: [Title]
 🔗 [GitHub link]
 ❓ Should we do it?
-🗳️ Size: S (1d), M (5 d), L (bigger)
+🗳️ Size: S (1d), M (5d), L (bigger)
 ```
 
-If we don't plan to do it mention why.
-If the size is L move the issue to Roadmap > Backlog.
+**Actions:**
+- If we don't plan to do it, document why
+- If the size is **L**, move the issue to Roadmap > Backlog
 
-**3. Backlog**
+**Step 3: Backlog**
 
-Backlog are all the issues that we agreed to do. The backlog is only sorted by creation time.
+The backlog contains all issues we've agreed to implement, sorted by creation time.
 
-**4. Next**
+**Step 4: Next**
 
-The 10 most important issues to work on comming from the backlog. This can be decided by the community using votes, support person and the Oncall engineer.
+The 10 most important issues to work on from the backlog. Priority is determined by:
+- Community votes
+- Support person's judgment
+- On-call engineer's input
 
-#### Workflow: Roadmap
-The Roadmap will be public, with most of the initiatives that we plan to work on.
+## Workflow: Roadmap
 
-Here we can have:
-1. Internal initiatvies created by us.
-2. Big feature requests by customers.
+The Roadmap is public and shows the initiatives we plan to work on.
 
-We will have 4 columns:
-1. Backlog - all initiatives
-2. Next - the next 5 initiatives that we will work on.
-3. In Progress - the current in progress initiatives.
-4. Done
+**Contents:**
+1. Internal initiatives created by the team
+2. Large feature requests from customers
 
-Main owner of this will be Birk and the Initiative owners to keep it updated. Priorities will be discussed adhoc on meeting or onsite.
+**Columns:**
+1. **Backlog** - All initiatives
+2. **Next** - The next initiatives we will work on
+3. **In Progress** - Current initiatives being worked on
+4. **Done** - Completed initiatives
 
-### Migration
-- Decommission Linear: Linear will be phased out over two weeks, with all new issues created in GitHub starting immediately.
-- Migration of Existing Issues: public issues already exists, private ones will be created under `polar-internal` repository.
-- Support Resources: A quick-start guide will be provided to ensure smooth onboarding.
+**Ownership:**
+- Primary owner: Birk
+- Initiative owners keep their sections updated
+- Priorities are discussed ad-hoc in meetings or during onsites
 
-### FAQs
+## Migration Plan
+
+**Decommission Linear**
+- Linear will be phased out over two weeks
+- All new issues must be created in GitHub starting immediately
+
+**Migrate Existing Issues**
+- Public issues already exist in GitHub
+- Private issues will be created under the `polar-internal` repository
+
+**Support Resources**
+- A quick-start guide will be provided to ensure smooth onboarding
+
+## FAQs
 
 **What if a private task is needed?**
 
-Create it directly under the polar-internal repository and mark it as private.
+Create it directly in the `polar-internal` repository and mark it as private.
 
 **How will voting work?**
 
-Use 👍 GitHub reaction
+Use the 👍 GitHub reaction on issues to vote.
 
-#### Next Steps
-- Immediate: Start creating all new issues directly in GitHub.
-- Next week: Complete migration of existing issues from Linear.
-- Ongoing: feedback and continuous improvement on the workflow
+## Next Steps
+
+- **Immediate**: Start creating all new issues directly in GitHub
+- **Next week**: Complete migration of existing issues from Linear
+- **Ongoing**: Gather feedback and continuously improve the workflow
