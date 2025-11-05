@@ -156,13 +156,13 @@ These are the tenets that I consider for the following document, sorted by prior
 | Option                  | Weight | Option 1: Business + BusinessCustomer | Option 2: Single Table Inheritance | Option 6: Synthetic Business |
 | ----------------------- | ------ | ------------------------------------- | ---------------------------------- | ---------------------------- |
 | Billing Accuracy        | 7      | ✅                                     | ✅                                  | ✅                            |
-| Backward compatibility  | 6      | ❌                                     | 🟡                                 | 🟡                           |
+| Backward compatibility  | 6      | 🟡                                     | 🟡                                 | 🟡                           |
 | Customer experience     | 5      | ✅                                     | ✅                                  | ✅                            |
 | Merchant dev experience | 4      | ❌                                     | ❌                                  | 🟡                           |
 | Operational flexibility | 3      | ✅                                     | ✅                                  | 🟡                           |
 | Performance             | 2      | ✅                                     | ❌                                  | ❌                            |
 | Polar dev experience    | 1      | 🟡                                    | 🟡                                 | ✅                            |
-| **Score**               | -      | 7                                     | 9                                  | 11                           |
+| **Score**               | -      | 13                                     | 9                                  | 11                           |
 
 Solution 3 and 4 are discarded because they don't meet the requirements and don't fix the problem.
 
@@ -252,7 +252,7 @@ class Event(RecordModel):
 
 #### Tenets
 1. ✅ Billing accuracy: events are attributed to a single customer
-2. ❌ Backward compatibility: customers that enabled seat-based billing will receive null customerIds in the API responses for some entities.
+2. 🟡 Backward compatibility: customers that enabled seat-based billing will receive null customerIds in the API responses for some entities.
 3. ✅ Customer experience: individual customers and business customers can have a tailored experience based on their needs.
 4. ❌ Merchant Developer experience: the merchant will need to do branching depending if the entities and customer is a business or an individual customer.
 5. ✅ Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
@@ -417,4 +417,4 @@ Same as [[Business Entity Design for Multi-Tenant Seat-Based Billing#Option 2|Op
 4. 🟡 Merchant Developer experience: merchant will treat all the customers the same way. But a first migration is needed.
 5. 🟡 Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
 6. ❌ Performance: one extra joined load on every customer query
-7. **✅ Polar developer experience:** we need to be aware of the branching and boundaries of what is a Customer is less defined.
+7. **✅ Polar developer experience:** no need to do branching as Customers are the ones using the product and Business entities are the ones managing the billing cycle.
