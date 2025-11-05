@@ -1,0 +1,418 @@
+<Info>
+**Status**: Draft
+**Created**: November 5, 2025
+**Last Updated**: November 5, 2025
+</Info>
+# Summary
+
+## Problem Statement
+
+The current seat-based billing implementation faces critical limitations in B2B multi-tenant scenarios:
+
+1. **Ambiguous Event Attribution**: When a customer belongs to multiple seat-based subscriptions from different organizations (e.g., Acme and Slack), events lack business context to determine which customer should be billed.
+2. **Inflexible Billing Management**: Changing the billing manager becomes tricky and information is on one customer or another
+3. **No Business-Level Aggregation**: When a business has multiple subscriptions from the same merchant, it's difficult to have business-level aggregation.s
+
+## Requirements
+1. Attribute events when customer belongs to multiple businesses
+2. Change billing manager without losing subscription history
+3. Payment methods belong to business and not individuals
+4. Both merchants and customers can creates businesses.
+5. Enable business-level usage aggregation across different subscriptions
+6. Support multiple billing managers per business
+
+---
+
+# Current Architecture Analysis
+
+The current model is:
+```
+Subscription
+├─ customer_id (UUID) ───────────> Customer (Billing Manager)
+├─ seats (int)                     # Total seats purchased
+└─ customer_seats (List)
+   └─ CustomerSeat
+      ├─ customer_id (UUID) ───> Customer (Seat Holder)
+      ├─ status (SeatStatus)     # pending, claimed, revoked
+      ├─ invitation_token
+      └─ claimed_at
+```
+
+**Key Files**:
+- `server/polar/models/customer_seat.py` - Seat model with lifecycle
+- `server/polar/models/subscription.py` - Subscription with seats field
+- `server/polar/models/product_price.py` - ProductPriceSeatUnit with tiering
+- `server/polar/customer_seat/service.py` - Seat assignment/claiming logic
+- `server/polar/meter/service.py:424-445` - Metered billing routing to change map the meters to the billing_manager
+
+---
+
+# Problem Statement
+
+## Problem 1: Multi-Tenant Event Attribution
+
+**Scenario**:
+- Slack (merchant) sells a "Pro" product with per-message pricing
+- Customer C is part of Acme's Slack workspace (10-seat subscription)
+- Customer C is also part of Lolo's Slack workspace (5-seat subscription)
+- Customer C sends a message → Which subscription should be billed?
+
+**Current Behavior**:
+```python
+# Event created without business context
+Event(
+    name="message.sent",
+    customer_id="customer_c",
+    user_metadata={"count": 1}
+)
+
+# Billing logic in meter/service.py:424-445
+customer_price = await repo.get_by_customer_and_meter(customer_c, meter)
+# Returns FIRST matching subscription (arbitrary)
+# ❌ Could bill Acme when message was sent in Lolo's workspace
+```
+
+**Required Solution**: Explicit business context in events to route billing correctly.
+
+---
+
+## Problem 2: Inflexible Billing Manager Changes
+
+**Scenario**:
+- Acme Corporation has a subscription with 50 seats
+- Original billing manager: alice@acme.com (Customer ID: cust_123)
+- New billing manager needed: finance@acme.com (Customer ID: cust_456)
+
+**Current Behavior**:
+```python
+# Subscription is directly tied to customer
+Subscription(
+    id="sub_acme",
+    customer_id="cust_123",  # Alice
+    seats=50
+)
+
+# To change billing manager, must:
+# 1. Create new customer (finance@acme.com)
+# 2. Migrate subscription to the new owner
+# 3. Migrate pending billing entries to the customer
+# ❌ First customer loses access to the history
+# ❌ Loses historical billing data continuity
+# ❌ Complex and error prone migration
+```
+
+**Required Solution**: move billing to the business entity
+
+---
+
+## Problem 3: No Business-Level Metrics
+
+**Scenario**:
+- Acme Corporation has 3 subscriptions (Pro Plan, Enterprise API, Storage)
+- Each of the 3 subscriptions have a different billing manager.
+- Merchant and Business wants to see total organizational spending and usage
+
+**Current behaviour**
+- ❌ No way to group the billing managers under the same umbrella.
+
+**Required Solution**: Business-level aggregation queries and reporting.
+
+---
+
+## Problem 4: Multiple billing_managers
+
+**Scenario**:
+- Acme has 20 company, CEO, CFO, and workers. The CFO is in charge to pay the bills but the CEO wants to have access in managing the seats and permissions.
+
+**Current behaviour**
+- ❌ No way to group the billing managers under the same umbrella.
+
+**Required Solution**: Business-level aggregation queries and reporting.
+
+---
+
+# Tenets
+> **Important!** review the tenets first!
+>
+> Tenets are principles that held true and guide the decision-making. They serve to clarify what is important when there is disagreement, drive alignement, and facilitate decision making.
+
+These are the tenets that I consider for the following document, sorted by priority, first is the highest priority.
+
+1. Billing accuracy: events must always bill the correct entity
+2. Backward compatibility: existing customers and subscriptions continue working unchanged.
+3. Customer experience: individual customers and business have a nice and seamless experience when purchasing or managing their subscriptions.
+4. Merchant Developer experience: API should be intuitive with minimal conditional logic.
+5. Operational Flexibility: support growth from individual -> startups -> enterprise
+	1. Seamless WorkOS/Auth0 integration
+	2. Business roles (billing manager, admin, member)
+	3. Multi-manager suport
+6. Performance: no degradation on subscription creation, event ingestion and processing.
+7. Polar developer experience: polar engineers can understand, test, and extend the system.
+# Solutions
+
+✅ 1 point, 🟡 0 points, ❌ -1 point
+
+| Option                  | Weight | Option 1: Business + BusinessCustomer | Option 2: Single Table Inheritance | Option 6: Synthetic Business |
+| ----------------------- | ------ | ------------------------------------- | ---------------------------------- | ---------------------------- |
+| Billing Accuracy        | 7      | ✅                                     | ✅                                  | ✅                            |
+| Backward compatibility  | 6      | ❌                                     | 🟡                                 | 🟡                           |
+| Customer experience     | 5      | ✅                                     | ✅                                  | ✅                            |
+| Merchant dev experience | 4      | ❌                                     | ❌                                  | 🟡                           |
+| Operational flexibility | 3      | ✅                                     | ✅                                  | 🟡                           |
+| Performance             | 2      | ✅                                     | ❌                                  | ❌                            |
+| Polar dev experience    | 1      | 🟡                                    | 🟡                                 | ✅                            |
+| **Score**               | -      | 7                                     | 9                                  | 11                           |
+Solution 3 and 4 are discarded because they don't meet the requirements and don't fix the problem.
+
+Solution 5 is discarded because it's similar to solution 2 with worse polar experience and flexibility.
+
+## Option 1: Introduce Business and Business Customer
+The idea of this architecture is to introduce 2 new concepts:
+
+- Business: that represents the legal entity who is purchasing the product
+- Business Customer: it's an employee of the company. At the beggining it will have only the role to manage the business (changing subscription seats, payment methods, download invoices, etc)
+
+CustomerSeats will remain the same, as those are the employees who benefit the the product.
+
+### New Entity: Business
+
+The **Business** entity represents a billing organization that owns subscriptions and groups customers.
+
+```python
+class Business(RecordModel):
+    """
+    Represents a business entity that acts as a billing container.
+
+    A Business:
+    - Can have multiple subscriptions and orders
+    - Future: Enables business-level usage tracking and reporting
+    """
+
+    id: UUID
+    organization_id: UUID
+
+    # Business Identity. We define a default name for each customer seat.
+    name: str | None
+    external_id: str | None
+```
+
+### New Entity: BusinessCustomer
+
+Links employees to businesses with optional role (for the future).
+
+```python
+class BusinessCustomer(RecordModel):
+    """
+    Links a Customer to a Business. The business customer is in charge to manage the business, like adding payment methods, requesting invoices, etc.
+
+    Represents membership in a business organization, allowing:
+    - Multiple customers per business
+    - Same customer in multiple businesses
+    - Future: Role-based access (member, admin, etc.)
+    """
+
+    id: UUID
+    business_id: UUID
+    customer_id: UUID
+
+   # for the future to have multiple roles.
+   role: RoleType
+```
+
+### Modified Entity: BillingEntry, Order, Payment Method, Refund, Subscription
+
+Add optional `business_id` foreign key for business-owned entities. Entities that are used to manage the billing cycle should have a `business_id` if the buyer it's a business or a customer_id if it's an individual.
+
+```python
+class Subscription(RecordModel):
+    # ... existing fields ...
+
+    # EXISTING - for backward compatibility (direct-to-customer)
+    customer_id: UUID | None
+
+    # NEW - for business-owned subscriptions
+	business_id: UUID | None
+```
+
+### Modified Entity: Event
+
+Add optional `business_id` for explicit business context in usage events. When the buyer it's a business, merchants should send the `business_id` on the events to avoid ambiguity when a Customer is on multiple businesses.
+
+```python
+class Event(RecordModel):
+    # ... existing fields ...
+
+    customer_id: UUID
+
+    # NEW - for business-owned subscriptions
+	business_id: UUID | None
+```
+
+### Tenets
+1. ✅ Billing accuracy: events are attributed to a single customer
+2. ❌ Backward compatibility: customers that enabled seat-based billing will receive null customerIds in the API responses for some entities.
+3. ✅ Customer experience: individual customers and business customers can have a tailored experience based on their needs.
+4. ❌ Merchant Developer experience: the merchant will need to do branching depending if the entities and customer is a business or an individual customer.
+5. ✅ Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
+6. ✅ Performance: no degradation on the first place
+7. 🟡 Polar developer experience: we need to be aware of the branching.
+## Option 2: Single Table Inheritance
+Instead of adding a `business_id` in each one of the entities that are used to manage the billing cycle, we can add a new concept that is a `BillingCustomerId` that holds who is the owner of that entity.
+
+### New Entity: BillingCustomerId
+
+```python
+class BillingCustomerId(RecordModel):
+    """
+    A holding entity that represents the original `id` of the customer or the new `business_id`.
+    """
+
+    id: UUID
+    business_id: UUID | None
+    customer_id: UUID | None
+```
+
+### Modified Entity: BillingEntry, Order, Payment Method, Refund, Subscription
+
+Add optional `business_id` foreign key for business-owned entities. Entities that are used to manage the billing cycle should have a `business_id` if the buyer it's a business or a customer_id if it's an individual.
+
+```python
+class Subscription(RecordModel):
+    # ... existing fields ...
+
+    # Existing but now points to BillingCustomerId
+    customer_id: UUID
+```
+
+
+### Tenets
+Same as option 1, but with:
+1. ✅ Billing accuracy: events are attributed to a single customer
+2. **🟡 Backward compatibility**: we will always return the customerId in the response, but now it can be a businessId or a customer itself. But business ids will not be available under `/v1/customers/{customerId}`. This will affect only orgs that enabled seat-based pricing.
+3. ✅ Customer experience: individual customers and business customers can have a tailored experience based on their needs.
+4. ❌ Merchant Developer experience: the merchant will need to do branching depending if the entities and customer is a business or an individual customer.
+5. ✅ Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
+6. ❌ Performance: one extra joinload on all queries that affect customers or businesses.
+7. 🟡 Polar developer experience: we need to be aware of the branching.
+
+## Option 3: Continue with CustomerSeats only
+
+Currently, we have the problem of multi-tenant attribution. But this is not only related to business customers, it can also happen to invidividual customers that have 2 subscriptions and have a shared meter.
+
+For example, Customer C, has two subscriptions with meter "storage_usage" and we send usage events. We don't know where to attribute this usage.
+
+### Modified Entity: Event
+Add mandatory `subscription_id` for subscriptions that have a metered pricing. This way, we can properly assign each event to the correct subscription and customer_seat.
+```python
+class Event(RecordModel):
+    # ... existing fields ...
+
+    # NEW - explicit business context for multi-tenant scenarios
+    subscription_id: UUID | None
+```
+
+### Tenets
+
+1. ✅ Billing accuracy: events are attributed to a single customer
+2. 🟡 Backward compatibility: this will only affect seat based subscriptions and only the merchants on beta will need to upgrade.
+3. 🟡 Customer experience: customers will have the same experience as now. Business customers may want more features.
+4. 🟡 Merchant Developer experience: the merchant will need to check if they should add the subscription_id to the events. Or always gather the subscription_id related to the customer.
+5. ❌ Operational Flexibility: no way to have roles inplace. Difficult to work with the concept of organization.
+6. ✅ Performance: no degradation on the first place
+7. ✅ Polar developer experience
+
+## Option 4: don't allow same customer to have same meter
+
+**Discarded:** most important tenents are not feasible.
+
+ We can add a validation that when a customer subscribes or claims a seat, we check if there is any meter clash on the products that bought or claimed.
+
+With this we can always infer the correct subscription to be charged for usaged based.
+
+### Tenets
+
+1. ✅ Billing accuracy: events are attributed to a single customer
+2. ❌ Backward compatibility: it's a new validation that we want to add that will be blocked in the future.
+3. ❌ Customer experience: we don't allow legitimate business cases
+4. ❌ Merchant Developer experience: developers
+5. ❌ Operational Flexibility: no way to have any of the features
+6. ✅ Performance: no degradation on the first place
+7. ✅ Polar developer experience
+
+## Option 5: Have different type of Customers
+
+ We can have `individual` and `business` customers. We could use inheritance for that instead of composition.
+
+ We will have the exact same problems as in 2, and our model will be more confusing, as we can grow Customers without clear definition. Like:
+
+- Why isn't a Seat holder a type of customer?
+- Why isn't a Visitor a type of customer?
+
+### Tenets
+Same as [[Business Entity Design for Multi-Tenant Seat-Based Billing#Option 2|Option 2]] except:
+1. ✅ Billing accuracy: events are attributed to a single customer
+2. **🟡 Backward compatibility**: we will always return the customerId in the response, but now it can be a businessId or a customer itself. But customer entities has types and depending on the types they will behave differently. Same semantic but a breaking change in the meaning.
+3. ✅ Customer experience: individual customers and business customers can have a tailored experience based on their needs.
+4. ❌ Merchant Developer experience: the merchant will need to do branching depending if the customer is a business or an individual customer.
+5. 🟡 Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
+6. ✅ Performance: no degradation on the first place
+7. **❌ Polar developer experience: we need to be aware of the branching and boundaries of what is a Customer is less defined.**
+
+## Option 6: Synthetic Business for all
+
+ We can introduce the concept of `Business` and `BusinessCustomer` as in [[Business Entity Design for Multi-Tenant Seat-Based Billing#Option 1 Introduce Business and Business Customer|Option 1]] but we have a synthetic business for all individual customers. So, when a new customer is created we create a business with a name "Birk's Personal Account" or similar.
+
+### New type: BusinessType
+
+```python
+class BusinessType(StrEnum):
+    individual = "individual"  # Synthetic business for 1 person
+    business = "business"      # Real business entity
+
+
+class Business(RecordModel):
+    """Billing entity - all subscriptions belong to businesses."""
+
+    id: UUID
+    organization_id: UUID
+
+    type: BusinessType
+
+    # Identity
+    name: str  # "Birk's Personal Account" OR "Acme Corporation"
+    external_id: str | None
+
+    # ... same fields as in Option 1
+```
+### Modified Entity: BillingEntry, Order, Payment Method, Refund, Subscription
+
+Add optional `business_id` foreign key for business-owned entities. Entities that are used to manage the billing cycle should have a `business_id` if the buyer it's a business or a customer_id if it's an individual.
+
+
+```python
+class Subscription(RecordModel):
+    # ... existing fields ...
+
+    # No more customer_id. Only business_id to the billing related entities.
+	business_id: UUID  # FK to Business (REQUIRED, not nullable)
+```
+### Modified Entity: Event
+
+Add mandatory `business_id` for explicit business context in usage events.
+
+```python
+class Event(RecordModel):
+    # ... existing fields ...
+
+    # NEW - explicit business context for multi-tenant scenarios
+	business_id: UUID  # FK to Business (REQUIRED, not nullable)
+```
+### Tenets
+Same as [[Business Entity Design for Multi-Tenant Seat-Based Billing#Option 2|Option 2]] except:
+1. ✅ Billing accuracy: events are attributed to a single customer
+2. **🟡 Backward compatibility**: business will be always a required parameter. We can create a v2 endpoints for that and only require if customers enable seat based billing.
+3. ✅ Customer experience: individual customers and business customers can have a tailored experience based on their needs. For individual customers, we may present more an "enterprise" view when there may not be the need.
+4. 🟡 Merchant Developer experience: merchant will treat all the customers the same way. But a first migration is needed.
+5. 🟡 Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
+6. ❌ Performance: one extra joined load on every customer query
+7. **✅ Polar developer experience:** we need to be aware of the branching and boundaries of what is a Customer is less defined.
