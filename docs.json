@@ -51,7 +51,8 @@
               "engineering/design-documents/seat-based-pricing",
               "engineering/design-documents/prorations",
               "engineering/design-documents/subscription-retries",
-              "engineering/design-documents/wallets"
+              "engineering/design-documents/wallets",
+              "engineering/design-documents/business-entity"
             ]
           },
           "engineering/tech-notes",
