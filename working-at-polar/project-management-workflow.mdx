@@ -35,9 +35,8 @@ We will adopt a standardized workflow across three GitHub Projects: Support, Tea
 
 | **Project** | **Visibility** | **Purpose**                                                                                     |
 | ----------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| **Support** | 🟢 Public      | Customer-facing issues: bugs, small feature requests, and support tickets                       |
+| **Public** | 🟢 Public      | Customer-facing issues: bugs, small feature requests, and support tickets, and Roadmap           |
 | **Team**    | 🔒 Private     | Internal tasks and engineering work using two repositories (`polar` and `polar-internal`)    |
-| **Roadmap** | 🟢 Public      | High-level features and initiatives we're delivering                                            |
 
 ### Issue Types
 
@@ -48,6 +47,7 @@ We will use two primary issue types:
 - Tags:
   - `#votes-needed` - Feature not yet planned
   - `#community-request` - Feature requested by the community
+  - `#polar-team` - Feature created or that will be handled by the Polar team.
 
 **Task**
 - A deliverable that needs to be completed. Can be a sub-issue of a feature or standalone
@@ -79,7 +79,7 @@ The Team project is what we'll use daily as engineers to track our initiatives a
 - Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
 
 **Repositories:**
-- Most issues will be public under the `polarsource/polar` repository
+- Most issues will be public under the `polarsource/polar` repository and with the `#polar-team` label.
 - Private tasks or initiatives should be created under `polarsource/polar-internal`
 
 ## Workflow: Support
@@ -120,8 +120,9 @@ The support engineer reviews issues weekly and asks:
 
 Discuss with the team whether we should implement it and estimate the size:
 - **S**: 1 day
-- **M**: 1 week (5 days)
-- **L**: Larger than a week
+- **M**: 4 days or less
+- **L**: Less than 2 weeks
+- **XL**: Larger than 2 weeks
 
 Post the following Slack message in #support:
 
@@ -129,12 +130,11 @@ Post the following Slack message in #support:
 🆕 New Issue: [Title]
 🔗 [GitHub link]
 ❓ Should we do it?
-🗳️ Size: S (1d), M (5d), L (bigger)
+🗳️ Size: S (1d), M (<5d), L (<2 weeks), XL (more than 2 weeks)
 ```
 
 **Actions:**
 - If we don't plan to do it, document why
-- If the size is **L**, move the issue to Roadmap > Backlog
 
 **Step 3: Backlog**
 
@@ -163,24 +163,6 @@ Opened pull requests by other team members that needs review.
 
 The issues completed by the support engineer.
 
-## Workflow: Roadmap
-
-The Roadmap is public and shows the initiatives we plan to work on.
-
-**Contents:**
-1. Internal initiatives created by the team
-2. Large feature requests from customers
-
-**Steps:**
-1. **Backlog** - All initiatives
-2. **Next** - The next initiatives we will work on
-3. **In Progress** - Current initiatives being worked on
-4. **Done** - Completed initiatives
-
-**Ownership:**
-- Primary owner: Birk
-- Initiative owners keep their sections updated
-- Priorities are discussed ad-hoc in meetings or during onsites
 
 ## Migration Plan
 
