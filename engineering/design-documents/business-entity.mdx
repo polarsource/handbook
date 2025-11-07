@@ -833,9 +833,6 @@ elif isinstance(subject, Member):
 | **Portal Endpoints** | ✅ All 44 endpoints work unchanged | ❌ All 44 need Customer\|Member conditional logic |
 | **OAuth Accounts** | ✅ Customer.oauth_accounts unchanged | ❌ Need Member.oauth_accounts duplicate storage |
 | **Multi-org Support** | ✅ Alice can be member AND individual customer | ❌ Blocked - cannot distinguish login context |
-| **Email Changes** | ✅ Customer email update logic works | 🟡 Need custom Member email update logic |
 | **Migration Complexity** | 🟡 Medium (create Customers) | ✅ Simple (copy emails) |
 | **Ongoing Maintenance** | ✅ Single code path | ❌ Dual code paths everywhere |
 | **Files Modified** | ✅ 5-10 files | ❌ 70-100 files |
-| **Technical Debt** | ✅ Low | ❌ High (parallel systems) |
-
