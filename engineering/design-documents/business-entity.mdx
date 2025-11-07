@@ -12,13 +12,13 @@ The current seat-based billing implementation faces critical limitations in B2B 
 
 1. **Ambiguous Event Attribution**: When a customer belongs to multiple seat-based subscriptions from different organizations (e.g., Acme and Slack), events lack business context to determine which customer should be billed.
 2. **Inflexible Billing Management**: Changing the billing manager becomes tricky and information is on one customer or another
-3. **No Business-Level Aggregation**: When a business has multiple subscriptions from the same merchant, it's difficult to have business-level aggregation.s
+3. **No Business-Level Aggregation**: When a business has multiple subscriptions from the same merchant, it's difficult to have business-level aggregation.
 
 ### Requirements
 1. Attribute events when customer belongs to multiple businesses
 2. Change billing manager without losing subscription history
 3. Payment methods belong to business and not individuals
-4. Both merchants and customers can creates businesses.
+4. Both merchants and customers can create businesses
 5. Enable business-level usage aggregation across different subscriptions
 6. Support multiple billing managers per business
 
@@ -153,20 +153,19 @@ These are the tenets that I consider for the following document, sorted by prior
 
 ✅ 1 point, 🟡 0 points, ❌ -1 point
 
-| Option                  | Weight | Option 1: Business + BusinessCustomer | Option 2: Single Table Inheritance | Option 6: Synthetic Business |
-| ----------------------- | ------ | ------------------------------------- | ---------------------------------- | ---------------------------- |
-| Billing Accuracy        | 7      | ✅                                     | ✅                                  | ✅                            |
-| Backward compatibility  | 6      | 🟡                                     | 🟡                                 | 🟡                           |
-| Customer experience     | 5      | ✅                                     | ✅                                  | ✅                            |
-| Merchant dev experience | 4      | ❌                                     | ❌                                  | 🟡                           |
-| Operational flexibility | 3      | ✅                                     | ✅                                  | 🟡                           |
-| Performance             | 2      | ✅                                     | ❌                                  | ❌                            |
-| Polar dev experience    | 1      | 🟡                                    | 🟡                                 | ✅                            |
-| **Score**               | -      | 13                                     | 9                                  | 11                           |
+| Option                  | Weight | Option 1: Business + BusinessCustomer | Option 6: Synthetic Business | Option 7: Member/Beneficiary |
+|-------------------------|--------|---------------------------------------|------------------------------|------------------------------|
+| Billing Accuracy        | 7      | ✅                                     | ✅                            | ✅                            |
+| Backward compatibility  | 6      | 🟡                                     | 🟡                            | 🟡                            |
+| Customer experience     | 5      | ✅                                     | ✅                            | ✅                            |
+| Merchant dev experience | 4      | ❌                                     | 🟡                            | 🟡                            |
+| Operational flexibility | 3      | ✅                                     | 🟡                            | ✅                            |
+| Performance             | 2      | ✅                                     | ❌                            | ❌                            |
+| Polar dev experience    | 1      | 🟡                                     | ✅                            | 🟡                            |
+| **Score**               | -      | 13                                    | 11                           | **15**                       |
 
 Solution 3 and 4 are discarded because they don't meet the requirements and don't fix the problem.
-
-Solution 5 is discarded because it's similar to solution 2 with worse polar experience and flexibility.
+Solution 2, 5, and 8 are discarded because they are the lowest score.
 
 ### Option 1: Introduce Business and Business Customer
 The idea of this architecture is to introduce 2 new concepts:
@@ -418,3 +417,425 @@ Same as [[Business Entity Design for Multi-Tenant Seat-Based Billing#Option 2|Op
 5. 🟡 Operational Flexibility: this maps to WorkOS and allows all features requested by our customers.
 6. ❌ Performance: one extra joined load on every customer query
 7. **✅ Polar developer experience:** no need to do branching as Customers are the ones using the product and Business entities are the ones managing the billing cycle.
+
+### Option 7: Member Layer
+
+**Core Insight**: Instead of adding a `Business` layer ABOVE customers, add a `Member` layer BELOW customers. This preserves the existing `Customer` as the billing entity while introducing granular product usage tracking.
+
+**Semantic Shift**: In this model, `Customer` represents the billing entity (the team/organization for seat-based, or individual for non-seat-based). Members are the people who use the product.
+
+```
+Customer("acme") = billing entity (the team)
+  ├── Member("alice", role="billing_manager") = product user + can manage
+  ├── Member("bob", role="admin") = product user + can manage
+  └── Member("charlie", role="member") = product user only
+
+Customer("dave") = billing entity (individual)
+  └── No Member - Dave is also the sole user
+```
+
+#### Why Keep CustomerSeat and Member Separate?
+
+They serve different purposes:
+- **CustomerSeat**: Seat allocation and invitation lifecycle related to an Order or Subscription.
+- **Member**: Role management, team structure, permissions (new).
+
+Customers can have multiple active subscriptions, and each one of those subscriptions can have different members assigned. Separation of entities would allow this flexibility.
+
+#### New Entity: Member
+
+The **Member** entity represents a person's membership in a team customer's organization.
+
+Members are linked to a Customer record (`user_customer_id`). This enables that the following features works out of the box:
+
+- Customer Portal
+- Customer Portal API endpoints
+- Webhooks events related to customers
+- OAuth accounts. GitHub, Discord, etc.
+
+```python
+class MemberRole(StrEnum):
+    billing_manager = "billing_manager"  # Can manage billing & users
+    admin = "admin"                       # Can manage users
+    member = "member"                     # Can only use product
+
+class Member(RecordModel):
+    """
+    Represents a person's membership in a team customer's organization.
+
+    Relationship with CustomerSeat:
+    - If billable=True: Member must have a CustomerSeat (1:1 relationship)
+    - If billable=False: Member has no CustomerSeat (billing manager, admin)
+
+    Relationship with Customer:
+    - team_customer_id: The team/organization (e.g., ACME Corp)
+    - user_customer_id: The individual person (e.g., Alice)
+
+    Why user_customer_id is REQUIRED (not optional):
+    - Authentication: CustomerSession links to customer_id
+    - Benefits: BenefitGrant requires customer_id
+    - OAuth: Customer.oauth_accounts stores linked accounts
+    - Proven pattern: CustomerSeat.customer_id already works this way
+    """
+
+    id: UUID
+    team_customer_id: UUID  # FK to Customer (the team/organization)
+
+    # Identity - REQUIRED link to individual's Customer record
+    user_customer_id: UUID  # FK to Customer (individual person, REQUIRED)
+    # Note: email/name are on the Customer record, not duplicated here
+
+    # Access control
+    role: MemberRole
+    billable: bool  # If True, requires a CustomerSeat
+
+    # Link to seat allocation (if billable)
+    customer_seat_id: UUID | None  # FK to CustomerSeat
+
+    # Member lifecycle
+    status: MemberStatus  # pending, active, revoked
+    invitation_token: str | None
+    claimed_at: datetime | None
+    revoked_at: datetime | None
+
+# Relationship diagram:
+# Customer("acme", email="billing@acme.com") ← team
+#   ├── Member(role="billing_manager", billable=False, customer_seat_id=None)
+#   │   └──> Customer("alice", email="alice@acme.com") ← individual (user_customer_id)
+#   └── Member(role="member", billable=True, customer_seat_id="seat_1")
+#       ├──> Customer("bob", email="bob@acme.com") ← individual (user_customer_id)
+#       └──> CustomerSeat(id="seat_1", customer_id="cust_bob")
+```
+
+#### Existing Entity: CustomerSeat (Unchanged)
+
+The **CustomerSeat** model remains unchanged and continues to handle seat allocation:
+
+```python
+class CustomerSeat(RecordModel):
+    """Existing model - no changes"""
+
+    subscription_id: UUID | None
+    order_id: UUID | None
+    status: SeatStatus  # pending, claimed, revoked
+    customer_id: UUID | None  # Individual who claimed the seat
+    invitation_token: str | None
+    claimed_at: datetime | None
+    revoked_at: datetime | None
+    metadata: dict[str, Any] | None
+```
+
+#### Modified Entity: Subscription
+
+No changes needed! `Subscription.customer_id` remains but its meaning shifts:
+- Non-seat-based: customer_id = individual customer (unchanged)
+- Seat-based: customer_id = team customer (the organization/business)
+
+```python
+class Subscription(RecordModel):
+    # ... existing fields ...
+
+    customer_id: UUID  # UNCHANGED
+    # For non-seat-based: points to individual customer
+    # For seat-based: points to team customer (semantic shift)
+
+    seats: int | None  # If set, subscription is seat-based
+```
+
+#### Modified Entity: Event
+
+Add optional `member_id` for explicit attribution in seat-based subscriptions with metered pricing.
+
+```python
+class Event(RecordModel):
+    # ... existing fields ...
+
+    customer_id: UUID  # Who pays (unchanged)
+
+    # NEW - explicit user attribution for seat-based scenarios
+    member_id: UUID | None  # Who used (optional)
+```
+
+
+#### Entity: BenefitGrant (unchanged)
+
+For seat-based subscriptions, will still work with CustomerSeats feature.
+
+```python
+class BenefitGrant(RecordModel):
+    # ... existing fields ...
+
+    # EXISTING - for non-seat-based & seat-based
+    customer_id: UUID
+```
+
+#### Migration Strategy
+
+**For existing non-seat-based subscriptions:**
+- ✅ No migration needed
+- ✅ Subscriptions continue working unchanged
+- ✅ Customer remains billing entity and implicit user
+- ✅ No CustomerSeat or Member records needed
+
+**For existing seat-based subscriptions (beta customers):**
+
+```python
+# Step 1: Convert billing manager's customer to "team customer"
+billing_manager_customer = get_customer(subscription.customer_id)  # Alice (was billing manager)
+billing_manager_customer.name = "ACME Corp"  # Update to team name
+billing_manager_customer.email = "billing@acme.com"  # Update to team email
+
+# Step 2: Create individual Customer record for Alice
+# Alice needs her own Customer record to authenticate and receive benefits
+alice_customer = Customer(
+    email="alice@acme.com",
+    name="Alice",
+    organization_id=billing_manager_customer.organization_id
+)
+
+# Step 3: Create Member record for billing manager (no seat consumption)
+Member(
+    team_customer_id=billing_manager_customer.id,  # Team customer (ACME)
+    user_customer_id=alice_customer.id,  # Alice's individual customer record (REQUIRED)
+    role="billing_manager",
+    billable=False,  # Doesn't consume a seat
+    customer_seat_id=None,  # No CustomerSeat needed
+    status="active"
+)
+
+# Step 4: For each CustomerSeat, ensure user has individual Customer record
+for seat in subscription.customer_seats:
+    # CustomerSeat.customer_id should already point to individual Customer
+    # If not, create one (this shouldn't happen in current system)
+    individual_customer = get_or_create_customer(
+        email=seat.email,  # From seat metadata or lookup
+        organization_id=subscription.organization_id
+    )
+
+    # Update CustomerSeat to point to individual Customer (if needed)
+    seat.customer_id = individual_customer.id
+
+    # Create Member linking team to individual
+    Member(
+        team_customer_id=subscription.customer_id,  # Team (ACME)
+        user_customer_id=individual_customer.id,  # Individual (Bob, Charlie, etc.)
+        role="member",
+        billable=True,
+        customer_seat_id=seat.id,  # Links to existing CustomerSeat
+        status=seat.status,  # Mirrors seat status
+        claimed_at=seat.claimed_at
+    )
+
+# Step 5: CustomerSeat table UNCHANGED
+# Step 6: subscription.customer_id UNCHANGED
+# But now points to "team customer" instead of individual
+
+# Result structure:
+# Customer("acme", email="billing@acme.com") ← team
+#   |
+#   ├─ Subscription(customer_id="acme", seats=50)
+#   |
+#   ├─ Member(team="acme", user="alice", role="billing_manager", billable=False)
+#   |   └─> Customer("alice", email="alice@acme.com") ← can authenticate!
+#   |
+#   └─ Member(team="acme", user="bob", role="member", billable=True, seat_id="seat_1")
+#       ├─> Customer("bob", email="bob@acme.com") ← can authenticate!
+#       └─> CustomerSeat(id="seat_1", customer_id="bob") ← unchanged
+```
+
+**Key Points**:
+1. **CustomerSeat is NOT replaced** - Member is an additive layer that extends CustomerSeat with role management
+2. **Every Member must link to individual Customer** - Required for authentication and benefits
+3. **Team customer and individual customers coexist** - Within same organization
+4. **CustomerSeat.customer_id stays unchanged** - Already points to individual Customer (current pattern)
+
+#### Tenets
+
+1. ✅ **Billing accuracy**: Events attributed via member_id for seat-based metered subscriptions
+2. 🟡 **Backward compatibility**:
+   - ✅ Non-seat-based: Zero changes (90% of customers)
+   - ❌ Seat-based: Breaking changes to subscription queries, benefit grants, events
+     - `GET /v1/subscriptions?customer_id=alice` → empty (customer_id now points to team)
+     - `GET /v1/subscriptions?customer_id=acme` → returns subscriptions
+     - `GET /v1/benefits/grants?customer_id=bob` → works as before
+3. ✅ **Customer experience**: Clear separation - Customer = payer, Member = user
+4. 🟡 **Merchant Developer experience**:
+   - ✅ Non-seat-based: No changes
+   - ❌ Seat-based: Need to track customer_id as team or individuals
+5. ✅ **Operational Flexibility**:
+   - ✅ Multiple billing managers (role="billing_manager", billable=False)
+   - ✅ Role-based access control via Member.role
+   - ✅ WorkOS/Auth0 integration (map SSO users → Members)
+6. ✅ **Performance**:
+   - ✅ Non-seat-based: Zero overhead (no joins)
+   - 🟡 Seat-based: a join needed to get the members or team
+7. ✅ **Polar developer experience**:
+   - Clear boundaries: Customer = billing, Member = usage
+   - Isolated to seat-based feature
+
+#### Comparison with Option 6
+
+Both Option 6 and Option 7 solve the same problems but with inverted architectures:
+
+| Aspect | Option 6 (Business Above) | Option 7 (Member Below) |
+|--------|---------------------------|-------------------------|
+| **Non-seat-based** | Business(type="individual") wrapper | No changes (current architecture) |
+| **Database changes** | Add business_id to 5+ tables | Add member table only |
+| **API translation** | Required for all endpoints | Not required |
+| **Performance** | +2 joins on every query | 0 joins for non-seat-based |
+| **Migration** | Migrate ALL subscriptions | Migrate seat-based only |
+| **Semantics** | Customer = user, Business = billing | Customer = billing, Member = user |
+| **Backward compat** | 🟡 With translation layer | 🟡 Without translation layer |
+
+
+### Option 8: Member Without Customer Link
+
+**Core Difference from Option 7**: Member does NOT link to individual Customer records. Instead, Member stores email/name directly.
+
+**Rationale**: Simplify data model by avoiding the need to create individual Customer records for each team member.
+
+```
+Customer("acme") = billing entity (the team)
+  ├── Member("alice", email="alice@acme.com", role="billing_manager")
+  └── Member("bob", email="bob@acme.com", role="member")
+
+# No individual Customer records for Alice/Bob
+```
+
+#### New Entity: Member (Email-based)
+
+```python
+class Member(RecordModel):
+    """
+    Represents team membership WITHOUT linking to individual Customer.
+    Identity stored directly on Member record.
+    """
+
+    id: UUID
+    team_customer_id: UUID  # FK to Customer (team)
+
+    # Identity stored directly (NO user_customer_id)
+    email: str  # Primary identifier
+    name: str | None
+
+    # Access control
+    role: MemberRole
+    billable: bool
+    customer_seat_id: UUID | None
+
+    # Lifecycle
+    status: MemberStatus
+    invitation_token: str | None
+    claimed_at: datetime | None
+```
+
+
+#### Required Infrastructure Changes
+
+**1. Dual Authentication System:**
+- Keep `CustomerSession` for individual customers
+- Add `MemberSession` for team members
+- Portal endpoints need to support `AuthSubject[Customer | Member]`
+
+**2. Dual Benefit System:**
+- `BenefitGrant.customer_id` for individual customers
+- `BenefitGrant.member_id` for team members
+- All benefit queries need to check both fields
+
+**3. Dual OAuth Storage:**
+- Keep `Customer.oauth_accounts` for individual customers
+- Add `Member.oauth_accounts` JSONB for team members
+
+**4. Email Validation:**
+- Add unique constraint: `(team_customer_id, email)` on Members table
+- Custom validation to prevent conflicts
+
+#### Tenets
+
+1. ✅ **Billing accuracy**: Events attributed via member_id
+2. 🟡 **Backward compatibility**: Same as Option 7 (seat-based requires changes)
+3. 🟡 **Customer experience**: Works but limited multi-org scenario.
+4. 🟡 **Merchant Developer experience**: multiple but similar endpointsfor team members and individual customers
+5. 🟡 **Operational Flexibility**: Limited - cannot support multi-org scenario
+6. ❌ **Performance**: Dual code paths increase complexity
+7. ❌ **Polar developer experience**:
+   - Must maintain parallel authentication systems (CustomerSession vs MemberSession)
+   - Must maintain parallel benefit grants (customer_id vs member_id)
+   - Must maintain parallel OAuth systems
+   - All customer portal endpoints need conditional logic
+
+#### Critical Limitations
+
+**1. Multi-Organization Scenario (BLOCKED):**
+```python
+# Alice is member of ACME AND has individual subscription
+Member(team="acme", email="alice@acme.com")  # Team member
+
+# Alice buys individual subscription
+# ❌ Cannot authenticate as Customer("alice") - no Customer record!
+# ❌ Same email exists in two contexts (Member and would-be Customer)
+# ❌ Login ambiguity: Is alice@acme.com logging in as Member or Customer?
+```
+
+**2. Customer Portal Access Pattern:**
+```python
+# Current: All endpoints use AuthSubject[Customer]
+async def list_subscriptions(
+    auth_subject: auth.CustomerPortalRead,  # Customer only
+    ...
+):
+    customer = auth_subject.subject  # Customer object
+    subscriptions = query(Subscription.customer_id == customer.id)
+
+# Option 8: Need conditional logic everywhere
+async def list_subscriptions(
+    auth_subject: auth.CustomerPortalRead | auth.MemberPortalRead,  # NEW union type
+    ...
+):
+    if isinstance(auth_subject.subject, Customer):
+        subscriptions = query(Subscription.customer_id == auth_subject.subject.id)
+    elif isinstance(auth_subject.subject, Member):
+        subscriptions = query(Subscription.customer_id == auth_subject.subject.team_customer_id)
+    # ^ This pattern repeated in XX endpoints!
+```
+
+**3. Benefit Grant:**
+```python
+# Current: Simple query
+grants = BenefitGrant.query(customer_id=customer.id)
+
+# Option 8: Dual query everywhere
+if isinstance(subject, Customer):
+    grants = BenefitGrant.query(customer_id=customer.id)
+elif isinstance(subject, Member):
+    grants = BenefitGrant.query(member_id=member.id)
+# ^ This pattern repeated in 9+ locations
+```
+
+#### Implementation Complexity
+
+**Files to Modify:**
+- **New models**: `MemberSession`, modified `BenefitGrant`
+- **Auth system**: Add `MemberSession` authenticator, `MemberPortalRead` dependency
+- **All portal endpoints**: Support `Customer | Member` union type
+- **All portal services**: Conditional logic for customer_id vs member_id
+- **All portal repositories**: Dual query patterns
+- **Benefit grant service**: Grant to customer_id OR member_id
+- **OAuth system**: Add `Member.oauth_accounts` storage and linking
+
+
+#### Comparison: Option 7 vs Option 8
+
+| Aspect | Option 7 (Member→Customer) | Option 8 (Member Email Only) |
+|--------|----------------------------|------------------------------|
+| **Auth System** | ✅ CustomerSession works unchanged | ❌ Need MemberSession parallel system |
+| **Benefit Grants** | ✅ BenefitGrant.customer_id unchanged | ❌ Need member_id field + dual queries |
+| **Portal Endpoints** | ✅ All 44 endpoints work unchanged | ❌ All 44 need Customer\|Member conditional logic |
+| **OAuth Accounts** | ✅ Customer.oauth_accounts unchanged | ❌ Need Member.oauth_accounts duplicate storage |
+| **Multi-org Support** | ✅ Alice can be member AND individual customer | ❌ Blocked - cannot distinguish login context |
+| **Email Changes** | ✅ Customer email update logic works | 🟡 Need custom Member email update logic |
+| **Migration Complexity** | 🟡 Medium (create Customers) | ✅ Simple (copy emails) |
+| **Ongoing Maintenance** | ✅ Single code path | ❌ Dual code paths everywhere |
+| **Files Modified** | ✅ 5-10 files | ❌ 70-100 files |
+| **Technical Debt** | ✅ Low | ❌ High (parallel systems) |
+
