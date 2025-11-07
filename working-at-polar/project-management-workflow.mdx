@@ -43,23 +43,34 @@ We will adopt a standardized workflow across three GitHub Projects: Support, Tea
 We will use two primary issue types:
 
 **Feature**
-- Large chunks of work that typically take more than a week to plan, design, and implement. Wallets, Product Analytics, Seats are some examples.
-- Tags:
-  - `#votes-needed` - Feature not yet planned
-  - `#community-request` - Feature requested by the community
-  - `#polar-team` - Feature created or that will be handled by the Polar team.
+- Roadmap features that typically take more than a week to plan, design and implement, e.g Wallets, Insights, Seats.
+- *Note: Create a `feat/<key>` label for grouping sub-tasks, e.g `feat/seats`*
 
 **Task**
-- A deliverable that needs to be completed. Can be a sub-issue of a feature or standalone
-- Tags:
-  - `#bug` - An error in the system
-  - `#support` - A support task where a customer requested help
-  - `#votes-needed` - A small feature that hasn't been planned yet
-  - `#community-request` - A feature requested by the community
-  - `#contributor-friendly` - Tasks the community can participate in (support person should review these)
+- A smaller deliverable (<= 1 week) that needs to be completed.
+- *Note: Sub-issue of a bigger roadmap feature? Add `feat/<key>` as the label
+  for grouping.*
 
 **No type**
 - New issues that need to be triaged
+
+
+### Issue Labels
+
+
+| Label                   | Use case                                                          |
+| -----                   | --------                                                          |
+| `feat/<key>`            | Group tasks by a feature grouping                                 |
+| `bug`                   | An error in the service                                           |
+| `votes-needed`          | Community voting for future roadmaps.                             |
+| `discussion`            | Discussion of the feature request/idea                            |
+| `community-request`     | Feature/task requested by the community                           |
+| `support`               | A support task where a customer requested help                    |
+| `docs`                  | Content or guides for our blog, docs etc                          |
+| `contributor-friendly`  | Good and defined issues for new contributors                      |
+| `polar-team`            | Assigned for our internal team                                    |
+
+
 
 ## Workflow: Team Project
 
