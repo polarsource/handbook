@@ -1,0 +1,76 @@
+<Info>
+**Status**: Draft
+
+**Created**: 2025-11-07
+
+**Last Updated**: 2025-11-07
+
+</Info>
+
+# Multi-Currency Support in Polar
+
+Historically, Polar has operated using a single base currency (USD) for all transactions and accounting. However, as our user base expands globally, there is a growing need to support multiple currencies natively within the platform. This design document will explore the requirements, challenges, and proposed solutions for implementing multi-currency support in Polar.
+
+## Key terms
+
+- Presentment Currency: The currency in which a payment/transaction is done, i.e. the price shown on the checkout page and customer's invoice.
+- Settlement Currency: The currency in which funds are shown on the merchant's side.
+- Payout Currency: The currency in which funds are paid out to the merchant's bank account.
+
+## Current state
+
+Currently, we only support USD as **presentment** and **settlement** currency. We support multiple **payout** currencies: merchants can connect any bank account supported by Stripe Connect and receive payouts in that currency. Stripe handles the currency conversion internally.
+
+## Comparison with Stripe
+
+Stripe has both the concepts of Presentment and Settlement currencies, with the following capabilities, given that Polar runs as **Stripe US account**
+
+## Presentment Currency: 135+ currencies supported
+
+In the current context, if we trigger a payment in a currency different than USD, Stripe will implicitly convert the funds to USD before settling them to our Stripe account.
+
+That said, they still show it up in the transactions list as the original currency. However, balance and analytics are all in USD.
+
+Ref: https://docs.stripe.com/currencies#presentment-currencies
+
+## Settlement Currency
+
+For US-based Stripe accounts, Stripe allows us to wire bank account for the following settlement currencies:
+
+- CAD
+- EUR
+- GBP
+
+After enabling another settlement currency, payments made in that currency will be settled in that currency, and funds will be shown in that currency in the balance.
+
+Ref: https://docs.stripe.com/payouts/multicurrency-settlement?account-country=US#attach-bank-accounts-to-receive-payouts-in-local-currencies
+
+## Requirements
+
+It's clear that when users ask for "multi-currency support", they generally think about the **Presentment Currency**. They want to be able to show prices in their local currency, and have customers pay in that currency. However, it's less clear if they want or need to have **Settlement Currency** support.
+
+Depending on how far we want to go, given the constraints we have with Stripe, we can consider several scenarios detailed below.
+
+### Scenario 1: Multiple Presentment Currencies, USD Settlement currency
+
+In this scenario, we would allow merchants to set prices in multiple currencies, and customers would be able to pay in their local currency. However, all funds would still be settled in USD.
+
+TODO: Implementation details
+
+### Scenario 2: Multiple Presentment Currencies, One Settlement Currency
+
+In this scenario, we would allow merchants to set prices in multiple currencies, and customers would be able to pay in their local currency. However, merchants would choose a single settlement currency for their account.
+
+TODO: Implementation details
+
+### Scenario 3: Single Presentment and Settlement Currency per Merchant
+
+In this scenario, we would allow merchants to choose a single presentment and settlement currency for their account. All prices would be shown in that currency, and all funds would be settled in that currency. For example, if they choose EUR, all prices would be shown in EUR, and all funds would be settled in EUR.
+
+TODO: Implementation details
+
+### Scenario 4: Multiple Presentment and Settlement Currencies
+
+In this scenario, we would allow merchants to set prices in multiple currencies, and customers would be able to pay in their local currency. Merchants would also be able to choose multiple settlement currencies for their account.
+
+TODO: Implementation details
