@@ -61,7 +61,7 @@ In this scenario, we would allow merchants to set prices in multiple currencies,
 
 - Allow to set other presentment currencies than `usd` when creating products (only a validation constraint to change).
 
-##### Implementation A
+**Implementation A**
 
 - To allow to display and track the presentment currency in the dashboard, add the following columns to Payment, Order, OrderItem, Refund and Subscription models:
   - `presentment_currency`: `str`
@@ -71,7 +71,7 @@ In this scenario, we would allow merchants to set prices in multiple currencies,
 
 Since original amounts field are still using `usd`, analytics and account transactions are working unchanged.
 
-##### Implementation B
+**Implementation B**
 
 - Store presentment amount and currency in the current amount fields.
 - When receiving a payment or refund from Stripe, we'll need to get the converted amount in `usd` Stripe calculated (from the balance transaction), to impact the merchant's Account balance.
@@ -91,7 +91,7 @@ Similar to Scenario 1, but with the ability to set an Organization's settlement 
   - Only currencies supported by Stripe for settlement can be chosen here (for US-based accounts: USD, CAD, EUR, GBP); provided Polar has enabled the settlement currency in Stripe account (with a proper bank account attached).
 - Allow to set other presentment currencies than `usd` when creating products (only a validation constraint to change).
 
-##### Implementation A
+**Implementation A**
 
 - To allow to display and track the presentment currency in the dashboard, add the following columns to Payment, Order, OrderItem, Refund and Subscription models:
   - `presentment_currency`: `str`
@@ -101,7 +101,7 @@ Similar to Scenario 1, but with the ability to set an Organization's settlement 
 
 Since original amounts field are still using `Organization.currency`, analytics and account transactions are working unchanged.
 
-##### Implementation B
+**Implementation B**
 
 - Store presentment amount and currency in the current amount fields.
 - When receiving a payment or refund from Stripe, we'll need to get the converted amount in `usd` Stripe calculated (from the balance transaction), to impact the merchant's Account balance.
@@ -124,7 +124,7 @@ This is somehow a generalization of our current single-currency model.
 
 In this scenario, we would allow merchants to set prices in multiple currencies, and customers would be able to pay in their local currency. Merchants would also be able to choose multiple settlement currencies for their account.
 
-#### Implementation details
+**Implementation details**
 
 This is the most complex scenario, as it requires significant changes to our data model and business logic. In particular, an Organization should be able to have several Account (one per settlement currency). It means then we'll need to extract the payout logic from that (since merchants will still likely want to have a single bank account for payouts, regardless of settlement currency).
 
@@ -134,17 +134,17 @@ This is the most complex scenario, as it requires significant changes to our dat
 - Add a mandatory `currency` parameter when computing metrics _or_ generate metrics in every enabled settlement currency.
 - Allow to set other presentment currencies than `usd` when creating products (only a validation constraint to change).
 
-##### Variant 1: limited presentment currencies per Organization
+**Variant 1: limited presentment currencies per Organization**
 
 Only allow to set presentment currencies that match one of the settlement currencies defined for the Organization. This is similar to Scenario 3.
 
 - When receiving a payment or refund from Stripe, match the currency with one of the Organization's settlement currencies, and impact it on the corresponding Account.
 
-##### Variant 2: unrestricted presentment currencies
+**Variant 2: unrestricted presentment currencies**
 
 Allow to set any presentment currency when creating products. This is similar to Scenario 2.
 
-###### Implementation A
+**Implementation A**
 
 - To allow to display and track the presentment currency in the dashboard, add the following columns to Payment, Order, OrderItem, Refund and Subscription models:
   - `presentment_currency`: `str`
@@ -153,7 +153,7 @@ Allow to set any presentment currency when creating products. This is similar to
   - It means Organization will probably always have a `usd` Account by default.
 - Prefer `presentment_amount` and `presentment_currency` when displaying amounts in the dashboard.
 
-##### Implementation B
+**Implementation B**
 
 - Store presentment amount and currency in the current amount fields.
 - When receiving a payment or refund from Stripe, if it matches one of the Organization's settlement currencies, impact it on the corresponding Account; otherwise, impact it on the currency which Stripe converted it to (most likely `usd`).
