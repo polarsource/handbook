@@ -58,9 +58,9 @@ Scale: 🔴 1 (poor) | 🟡 2 (acceptable) | 🟢 3 (excellent)
 | Backward compatibility  | 6      | 🟢 3 (18)                         | 🟡 2 (12)                |
 | Simplicity              | 5      | 🟡 2 (10)                         | 🟡 2 (10)                |
 | Minimal changes for B2B | 4      | 🟡 2 (8)                          | 🟡 2 (8)                 |
-| Polar dev experience    | 3      | 🔴 1 (3)                          | 🟢 3 (9)                 |
+| Polar dev experience    | 3      | 🟡 2 (6)                          | 🟢 3 (9)                 |
 | WorkOS                  | 2      | 🟢 3 (6)                          | 🟢 3 (6)                 |
-| **Total Score**         | -      | **59**                            | **66**                   |
+| **Total Score**         | -      | **62**                            | **66**                   |
 
 
 We will extend the existing `Customer` entity with a `type` field (individual or business) and introduce a `Member` junction table for team relationships. This provides:
@@ -68,7 +68,7 @@ We will extend the existing `Customer` entity with a `type` field (individual or
 - **Simpler mental model**: Everything is a customer - individuals and businesses
 - **Easier migration**: Just add `type` field and Member table, no entity splitting required
 
-**Key Decision Rationale**: Option 2 scores lower (59/81 vs 66/81), we're prioritizing architectural simplicity over developer experience. Having a single Customer entity is conceptually simpler and avoids the complexity of splitting billing from usage across two entities. The developer experience trade-offs (type filtering) are manageable with proper tooling. We can migrate to BillingAccount if this became a need.
+**Key Decision Rationale**: Option 2 scores lower (62/81 vs 66/81), we're prioritizing architectural simplicity over developer experience. Having a single Customer entity is conceptually simpler and avoids the complexity of splitting billing from usage across two entities. The developer experience trade-offs (type filtering) are manageable with proper tooling. We can migrate to BillingAccount if this became a need.
 
 ### Option 2: Member Layer ✅ RECOMMENDED
 
@@ -82,10 +82,10 @@ We will extend the existing `Customer` entity with a `type` field (individual or
 
 **Trade-offs & Mitigations**:
 
-1. **Polar Developer Experience (🔴 1)**: Requires type filtering in queries
-   - **Problem**: Every billing query needs `WHERE customer.type = 'business'` filtering
-   - **Mitigations**: [Repository scopes + DB Views +  Linting rules](#appendix-b-mitigation-strategies-option-2)
-   - **Our Take**: Trade-off is acceptable. With proper repository patterns, tooling, and documentation, merchants and ourselfs can write clean code.
+1. **Polar Developer Experience (🟡 2)**: Type discrimination handled by SQLAlchemy polymorphism
+   - **Problem**: Polymorphism can lead to complex queries and type checking
+   - **Mitigations**: Use SQLAlchemy's [single-table inheritance with polymorphic models](#b1-sqlalchemy-polymorphic-models-implementation)
+   - **Our Take**: Polymorphism eliminates most manual filtering concerns.
 
 2. **Billing Accuracy (🟡 2)**: Customer entity does double duty
    - **Problem**: Customer means both "user" and "business" (i know that upwards I said the opposite XD)
@@ -135,7 +135,7 @@ Option 1's clean separation it's appealing, but we believe the simpler data mode
 
 ---
 
-## Implementation Plan: Option 2 (Member Layer)
+## Implementation Plan: Option 2 (Member Layer with Polymorphic Models)
 
 Given that each feature will take 2-4 days to implement. I think we can deliver within 14 business days (optimistic) and 28 business days for a single dev.
 
@@ -244,90 +244,192 @@ erDiagram
 
 ### Appendix B: Mitigation Strategies (Option 2)
 
-This appendix details some solutions for Option 2's trade-offs.
+This appendix details solutions for Option 2's trade-offs.
 
-#### B.1: Developer Experience - Repository Scopes
+#### B.1: SQLAlchemy Polymorphic Models Implementation
 
-**Problem**: Every query needs type filtering, causing boilerplate and bug risk.
-**Solution**: Repository methods encapsulate type filtering.
+**Problem**: Manual type filtering in every query causes boilerplate and reduces developer experience.
+**Solution**: Use SQLAlchemy's [single-table inheritance](https://docs.sqlalchemy.org/en/20/orm/inheritance.html#single-table-inheritance) to eliminate manual type filtering and improve developer experience.
+
+**Implementation**:
+
+We'll leverage SQLAlchemy's polymorphic models to automatically handle type discrimination:
+
+```python
+class Customer(RecordModel):
+    """Base customer model with polymorphic discrimination."""
+    __tablename__ = "customers"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"))
+    type: Mapped[CustomerType] = mapped_column()  # Discriminator column
+    email: Mapped[str | None] = mapped_column()  # NULL for business customers
+    name: Mapped[str] = mapped_column()
+    stripe_customer_id: Mapped[str | None] = mapped_column()
+    # ... other common fields
+
+    __mapper_args__ = {
+        "polymorphic_on": "type",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
+
+class BusinessCustomer(Customer):
+    """Business customer with team members and subscriptions."""
+
+    # Type hint for discriminator ensures proper typing
+    type: Mapped[Literal[CustomerType.business]] = mapped_column()
+
+    # Business-specific relationships
+    members: Mapped[list["Member"]] = relationship(
+        "Member",
+        foreign_keys="Member.business_customer_id",
+        back_populates="business",
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": CustomerType.business,
+    }
+
+class IndividualCustomer(Customer):
+    """Individual customer who can receive benefits and authenticate."""
+
+    type: Mapped[Literal[CustomerType.individual]] = mapped_column()
+
+    # Individual-specific relationships
+    benefit_grants: Mapped[list["BenefitGrant"]] = relationship(
+        "BenefitGrant",
+        back_populates="customer",
+    )
+    customer_sessions: Mapped[list["CustomerSession"]] = relationship(
+        "CustomerSession",
+        back_populates="customer",
+    )
+    memberships: Mapped[list["Member"]] = relationship(
+        "Member",
+        foreign_keys="Member.individual_customer_id",
+        back_populates="individual",
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": CustomerType.individual,
+    }
+```
+
+**Key Benefits:**
+
+1. **Automatic Type Filtering**: SQLAlchemy automatically adds WHERE clauses
+   ```python
+   # Automatically adds: WHERE customers.type = 'business'
+   businesses = await session.execute(select(BusinessCustomer))
+   ```
+
+2. **Smart Type Casting**: Queries return properly typed instances
+   ```python
+   # Returns BusinessCustomer or IndividualCustomer instances (not base Customer)
+   customers = await session.execute(select(Customer))
+   for customer in customers.scalars():
+       if isinstance(customer, BusinessCustomer):
+           # IDE knows customer.members exists
+           print(f"Business with {len(customer.members)} members")
+       elif isinstance(customer, IndividualCustomer):
+           # IDE knows customer.benefit_grants exists
+           print(f"Individual with {len(customer.benefit_grants)} benefits")
+   ```
+
+3. **Type Safety**: Python's type system works naturally
+   ```python
+   def grant_benefit(customer: IndividualCustomer, benefit: Benefit):
+       customer.benefit_grants.append(BenefitGrant(...))
+
+   def add_member(business: BusinessCustomer, individual: IndividualCustomer):
+       business.members.append(Member(...))
+   ```
+
+This approach significantly improves developer experience (🔴 1 → 🟡 2) while maintaining Option 2's architectural simplicity.
+
+#### B.2: Developer Experience - Repository with Polymorphic Models
+
+**Problem**: Query boilerplate and ensuring type safety.
+**Solution**: Use SQLAlchemy polymorphic models with simple repository methods.
 **Implementation**:
 
 ```python
 # server/polar/customer/repository.py
 class CustomerRepository:
-    """Centralizes Customer queries with type filtering."""
+    """Centralizes Customer queries using polymorphic models."""
 
     async def list_individuals(
         self,
         session: AsyncSession,
         organization_id: UUID,
         **filters,
-    ) -> list[Customer]:
-        """Get all individual customers. Type filter is built-in."""
-        stmt = (
-            select(Customer)
-            .where(
-                Customer.organization_id == organization_id,
-                Customer.type == CustomerType.individual,
-            )
+    ) -> list[IndividualCustomer]:
+        """Get all individual customers. SQLAlchemy handles type filtering."""
+        stmt = select(IndividualCustomer).where(
+            IndividualCustomer.organization_id == organization_id
         )
         # Apply additional filters
         for key, value in filters.items():
-            stmt = stmt.where(getattr(Customer, key) == value)
-        return await session.execute(stmt).scalars().all()
+            stmt = stmt.where(getattr(IndividualCustomer, key) == value)
+        result = await session.execute(stmt)
+        return result.scalars().all()
 
     async def list_businesses(
         self,
         session: AsyncSession,
         organization_id: UUID,
         **filters,
-    ) -> list[Customer]:
-        """Get all business customers. Type filter is built-in."""
-        stmt = (
-            select(Customer)
-            .where(
-                Customer.organization_id == organization_id,
-                Customer.type == CustomerType.business,
-            )
+    ) -> list[BusinessCustomer]:
+        """Get all business customers. SQLAlchemy handles type filtering."""
+        stmt = select(BusinessCustomer).where(
+            BusinessCustomer.organization_id == organization_id
         )
         for key, value in filters.items():
-            stmt = stmt.where(getattr(Customer, key) == value)
-        return await session.execute(stmt).scalars().all()
+            stmt = stmt.where(getattr(BusinessCustomer, key) == value)
+        result = await session.execute(stmt)
+        return result.scalars().all()
 
     async def get_individual(
         self, session: AsyncSession, id: UUID
-    ) -> Customer:
-        """Get customer and validate type=individual."""
-        customer = await session.get(Customer, id)
+    ) -> IndividualCustomer:
+        """Get individual customer. Type-safe by design."""
+        result = await session.execute(
+            select(IndividualCustomer).where(IndividualCustomer.id == id)
+        )
+        customer = result.scalar_one_or_none()
         if not customer:
-            raise NotFound(f"Customer {id} not found")
-        if customer.type != CustomerType.individual:
-            raise ValueError(f"Customer {id} is not an individual")
+            raise NotFound(f"Individual customer {id} not found")
         return customer
 
     async def get_business(
         self, session: AsyncSession, id: UUID
-    ) -> Customer:
-        """Get customer and validate type=business."""
-        customer = await session.get(Customer, id)
-        if not customer:
-            raise NotFound(f"Customer {id} not found")
-        if customer.type != CustomerType.business:
-            raise ValueError(f"Customer {id} is not a business")
-        return customer
+    ) -> BusinessCustomer:
+        """Get business customer. Type-safe by design."""
+        result = await session.execute(
+            select(BusinessCustomer).where(BusinessCustomer.id == id)
+        )
+        business = result.scalar_one_or_none()
+        if not business:
+            raise NotFound(f"Business customer {id} not found")
+        return business
 ```
 
-**Benefit**: Service layer code never writes type filters:
+**Service layer usage**:
 
 ```python
-# Service layer - clean and safe
+# Service layer - clean, type-safe, and concise
 async def get_business_subscriptions(business_id: UUID):
+    # Returns BusinessCustomer instance, IDE knows .subscriptions exists
     business = await customer_repo.get_business(session, business_id)
-    # Type validation already done by repository
     return business.subscriptions
+
+async def grant_benefit_to_individual(individual_id: UUID, benefit: Benefit):
+    # Returns IndividualCustomer instance, IDE knows .benefit_grants exists
+    individual = await customer_repo.get_individual(session, individual_id)
+    individual.benefit_grants.append(BenefitGrant(...))
 ```
 
-#### B.2: Billing Accuracy - Explicit Naming
+#### B.3: Billing Accuracy - Explicit Naming
 
 **Problem**: `Event.customer_id` could mean "who did it" or "who pays" - ambiguous.
 **Solution**: Use explicit field names that clarify intent.
@@ -362,104 +464,26 @@ class Event(RecordModel):
         backref="billing_events",
     )
 ```
-#### B.4: Developer Experience - Linting Rules
+#### B.4: Developer Experience - Type Checking with mypy
 
-**Problem**: Easy to forget type filtering, causing bugs.
-**Solution**: Pre-commit hooks that warn about missing type filters. Maybe we can add it to ruff.
-
-**Implementation**:
-
-```python
-# scripts/lint_customer_queries.py
-"""
-Pre-commit hook to check Customer queries have type filters. We can implement something more sophisiticated if we get false positivies.
-"""
-import ast
-import sys
-
-class CustomerQueryChecker(ast.NodeVisitor):
-    def __init__(self):
-        self.warnings = []
-
-    def visit_Call(self, node):
-        if self._is_customer_query(node):
-            if not self._has_type_filter(node):
-                self.warnings.append(
-                    f"Line {node.lineno}: Customer query missing type filter"
-                )
-        self.generic_visit(node)
-
-    def _is_customer_query(self, node):
-        return "Customer" in ast.unparse(node)
-
-    def _has_type_filter(self, node):
-        source = ast.unparse(node)
-        return "Customer.type" in source
-
-def check_file(filepath):
-    with open(filepath) as f:
-        tree = ast.parse(f.read())
-    checker = CustomerQueryChecker()
-    checker.visit(tree)
-    return checker.warnings
-
-if __name__ == "__main__":
-    warnings = []
-    for filepath in sys.argv[1:]:
-        warnings.extend(check_file(filepath))
-
-    if warnings:
-        print("⚠️  Customer query warnings:")
-        for w in warnings:
-            print(f"  {w}")
-        print("\nUse repository scopes instead: customer_repo.list_individuals()")
-        sys.exit(1)
-```
-#### B.5: Billing Accuracy - Type Validation
-
-**Problem**: Runtime errors if wrong customer type is used.
-**Solution**: Validation decorators and service-layer checks.
+**Problem**: Ensuring developers use the correct customer subtype.
+**Solution**: Leverage mypy and type hints with polymorphic models.
 
 **Implementation**:
-```python
-# server/polar/utils/validation.py
-from functools import wraps
 
-def requires_business_customer(func):
-    """Decorator that validates customer is type='business'."""
-    @wraps(func)
-    async def wrapper(self, customer: Customer, *args, **kwargs):
-        if customer.type != CustomerType.business:
-            raise ValueError(
-                f"Operation requires business customer, got {customer.type}"
-            )
-        return await func(self, customer, *args, **kwargs)
-    return wrapper
-
-def requires_individual_customer(func):
-    """Decorator that validates customer is type='individual'."""
-    @wraps(func)
-    async def wrapper(self, customer: Customer, *args, **kwargs):
-        if customer.type != CustomerType.individual:
-            raise ValueError(
-                f"Operation requires individual customer, got {customer.type}"
-            )
-        return await func(self, customer, *args, **kwargs)
-    return wrapper
-```
-
-**Usage**:
+With polymorphic models, mypy catch errors during dev time:
 
 ```python
-# server/polar/benefit/service.py
-class BenefitService:
-    @requires_individual_customer
-    async def grant_benefit(
-        self,
-        individual: Customer,
-        benefit: Benefit,
-    ) -> BenefitGrant:
-        pass
+# This will pass mypy type checking
+def add_team_member(business: BusinessCustomer, individual: IndividualCustomer):
+    business.members.append(Member(
+        business_customer_id=business.id,
+        individual_customer_id=individual.id,
+    ))
+
+# This will FAIL mypy type checking - IndividualCustomer doesn't have .members
+def add_team_member_wrong(individual: IndividualCustomer, member: IndividualCustomer):
+    individual.members.append(Member(...))  # ❌ mypy error: "IndividualCustomer" has no attribute "members"
 ```
 
 ### Appendix C: Why We Rejected BillingAccount
@@ -561,8 +585,6 @@ Reality:
 **Our Take**: Start simple (1 entity), add separation later if truly needed. We can always make a complex migration later.
 
 **Decision**: We're choosing **architectural simplicity** (fewer entities, simpler model) over **query simplicity** (no filtering). The trade-off is conscious and acceptable given proper tooling and discipline.
-
----
 
 ## Open Questions
 
