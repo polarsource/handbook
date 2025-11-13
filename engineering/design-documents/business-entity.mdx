@@ -109,7 +109,57 @@ Member (business_customer_id, individual_customer_id, role)
   └─ Defines roles (admin, billing_manager, member)
 ```
 
-**See [Appendix A](#appendix-a-detailed-er-diagram-option-2) for detailed ER diagram and flows.**
+#### Event Attribution: subscription_id vs billing_customer_id
+
+**Problem**: How do we attribute usage events to the correct payer in B2B scenarios?
+
+This problem is happening now in B2C where the same customer has multiple subscriptions with the same meter attached.
+
+**Two Approaches:**
+
+1. **Approach A: subscription_id**
+   ```python
+   class Event(RecordModel):
+       customer_id: UUID  # Who performed the action (always IndividualCustomer)
+       subscription_id: UUID | None # Which subscription to bill. It's optional but we will try to infer it for most cases. When not possible, an error is raised.
+   ```
+   - **Benefits**:
+     - Clearer semantic: "bill this subscription"
+     - Subscription already knows its customer (individual or business)
+     - Works for both metered billing and seat tracking
+     - Simpler for developers: "events are charged in the context of a subscription"
+   - **Trade-offs**:
+     - Merchant must track which subscription the user is acting under
+
+2. **Approach B: business_customer_id**
+   ```python
+   class Event(RecordModel):
+       customer_id: UUID  # Who performed the action (IndividualCustomer)
+       business_customer_id: UUID | None  # Which business to bill (NULL for B2C)
+   ```
+   - **Benefits**:
+     - Matches `CustomerType.business` naming
+     - Clearer than generic "billing_customer_id"
+   - **Trade-offs**:
+     - Still requires resolving business→subscription
+     - Less clear semantic ("who" vs "what subscription")
+
+#### Dashboard Filtering Strategy
+
+**Problem**: Dashboard could show all customers including member-only individuals, creating confusion.
+
+**Requirements** (from merchant perspective):
+1. Show all business customers
+2. Show individual customers created via merchant API
+3. Show individual customers who purchased something
+4. Hide individual customers who ONLY exist as members (auto-created when added to business)
+5. Members are viewable nested under their business customer
+
+**Solution: Use relationships to determine visibility** . Add another customer type that is "member", so we will have three types: business, individual, and member. Members are not viewable directly but are nested under their business customer.
+If a individual customer is a member, they have the status of "individual" therefore are visible on the dashboard and are nested under their business customer.
+
+**See [Appendix A](#appendix-a-detailed-er-diagram-option-2) for detailed ER diagram.**
+**See [Appendix D: Integration Examples](#appendix-d-integration-examples) for full integration flow and API examples.**
 
 ### Option 1: BillingAccount Entity ❌ REJECTED
 
@@ -165,22 +215,29 @@ Given that each feature will take 2-4 days to implement. I think we can deliver 
 
 ### Appendix A: Detailed ER Diagram (Option 2)
 
+
 ```mermaid
 erDiagram
     Organization ||--o{ Customer : "has"
     Organization ||--o{ Product : "sells"
 
-    Customer ||--o{ Member : "business customers have"
-    Customer ||--o{ Member : "individuals belong to"
     Customer ||--o{ Subscription : "owns"
+    %% Polymorphic relationships - BusinessCustomer subtype
+    Customer ||--o{ Member : "business: has members"
+
+    %% Polymorphic relationships - IndividualCustomer subtype
+    Customer ||--o{ Member : "individual: member of"
+    Customer ||--o{ CustomerSeat : "individual: claims seat"
+    Customer ||--o{ BenefitGrant : "individual: receives benefits"
+    Customer ||--o{ CustomerSession : "individual: authenticates"
+
+    %% Common relationships (both subtypes)
     Customer ||--o{ Order : "owns"
     Customer ||--o{ PaymentMethod : "owns"
-    Customer ||--o{ Event : "generates or pays for"
-    Customer ||--o{ CustomerSeat : "can claim (individuals only)"
-    Customer ||--o{ BenefitGrant : "receives (individuals only)"
-    Customer ||--o{ CustomerSession : "can login (individuals only)"
+    Customer ||--o{ Event : "individual: performs action"
 
     Subscription ||--o{ CustomerSeat : "allocates"
+    Subscription ||--o{ Event : "bills usage"
     Subscription }o--|| Product : "is for"
     Subscription }o--o| PaymentMethod : "pays with"
 
@@ -189,8 +246,8 @@ erDiagram
     Customer {
         uuid id PK
         uuid organization_id FK
-        string type "individual or business (NEW)"
-        string email "REQUIRED for individual, NULL for business"
+        string type "DISCRIMINATOR: individual | business"
+        string email "NULL for business, REQUIRED for individual"
         string name "Person name OR Business name"
         string external_id
         string stripe_customer_id
@@ -199,8 +256,8 @@ erDiagram
 
     Member {
         uuid id PK
-        uuid business_customer_id FK "Customer where type=business"
-        uuid individual_customer_id FK "Customer where type=individual"
+        uuid business_customer_id FK "→ Customer (BusinessCustomer)"
+        uuid individual_customer_id FK "→ Customer (IndividualCustomer)"
         string role "admin, billing_manager, member"
         datetime invited_at
         datetime joined_at
@@ -209,7 +266,7 @@ erDiagram
 
     Subscription {
         uuid id PK
-        uuid customer_id FK "Individual (B2C) OR Business (B2B)"
+        uuid customer_id FK "→ Customer (BusinessCustomer for B2B)"
         uuid payment_method_id FK
         int seats "NULL for non-seat, number for seat-based"
         string status
@@ -218,29 +275,41 @@ erDiagram
     CustomerSeat {
         uuid id PK
         uuid subscription_id FK
-        uuid customer_id FK "ONLY type=individual receives benefits"
+        uuid customer_id FK "→ Customer (IndividualCustomer only)"
         string status
     }
 
     Event {
         uuid id PK
-        uuid customer_id FK "Who did it: Individual"
-        uuid billing_customer_id FK "Who pays: Individual (B2C) OR Business (B2B)"
+        uuid customer_id FK "→ Customer (IndividualCustomer who did it)"
+        uuid subscription_id FK "→ Subscription (which subscription to bill)"
         string name
+        jsonb properties
     }
 
     CustomerSession {
         uuid id PK
-        uuid customer_id FK "ONLY type=individual can login"
+        uuid customer_id FK "→ Customer (IndividualCustomer only)"
         string token
     }
 
     BenefitGrant {
         uuid id PK
-        uuid customer_id FK "ONLY type=individual receives benefits"
+        uuid customer_id FK "→ Customer (IndividualCustomer only)"
         uuid subscription_id FK
     }
 ```
+
+**Key Points:**
+- **Single Table**: All customer data lives in the `customers` table
+- **Polymorphic Discrimination**: The `type` column distinguishes between `individual`, `business`, and `members`.
+- **Dashboard Filtering**: Uses type to determine visibility on the dashboard.
+- **SQLAlchemy Subtypes**:
+  - `BusinessCustomer` (type='business') has `members` relationships
+  - `IndividualCustomer` (type='individual') has `benefit_grants`, `customer_sessions`, and can claim `customer_seats`
+- **Event Attribution**: Still under discussion.
+- **Type Safety**: `select(BusinessCustomer)` automatically filters `WHERE type = 'business'`
+- **Smart Casting**: Queries return properly typed instances (e.g., `isinstance(customer, BusinessCustomer)` works)
 
 ### Appendix B: Mitigation Strategies (Option 2)
 
@@ -586,6 +655,252 @@ Reality:
 
 **Decision**: We're choosing **architectural simplicity** (fewer entities, simpler model) over **query simplicity** (no filtering). The trade-off is conscious and acceptable given proper tooling and discipline.
 
+---
+
+### Appendix D: Integration Examples
+
+This appendix shows complete integration flows from an external developer's perspective.
+
+#### D.1: Business Checkout Flow (Step-by-Step)
+
+**Scenario**: Acme Corp wants to purchase a team subscription for 10 seats.
+
+**Step 1: Merchant creates business customer and individual customer**
+
+First, create the individual customer:
+
+```python
+res = polar.customers.create(request={
+    "external_id": "cust_alice",
+    "email": "alice@acme.com",
+    "name": "Alice",
+    "organization_id": "1dbfc517-0bbf-4301-9ba8-555ca42b9737",
+    
+})
+```
+
+Then create the customer:
+```python
+res = polar.customers.create(request={
+    "external_id": "cust_acme",
+    "name": "ACME_INC",
+    "type": "business",
+    "external_owner_id": "cust_alice", # This should create the relationship automatically
+    "billing_address": {
+        "country": polar_sdk.CountryAlpha2Input.US,
+    },
+    "tax_id": [
+        "911144442",
+        "us_ein",
+    ],
+    "organization_id": "1dbfc517-0bbf-4301-9ba8-555ca42b9737",
+    
+})
+```
+
+**Step 2: Merchant creates checkout session**
+
+```python
+    res = polar.checkouts.create(request={
+        "external_business_customer_id": "cust_acme", # new attirbute to attach payment method and subscription to the business customer.
+        "external_customer_id": "cust_alice",
+        "products": ["product_1"],
+    })
+```
+
+If the business_customer_id is not provided, and the product is a seat based product. Polar will automatically:
+
+1. First create a business customer
+2. Create a membership relationship between the customer_id and the business created.
+
+
+**Step 2: Customer completes checkout**
+
+Customer fills out Polar checkout form...
+
+**Step 3: Webhook fired to merchant**
+
+```json
+{
+  "type": "order.paid",
+  "data": {
+    "id": "ord_abc123",
+    "customer": {
+      "id": "cust_acme",  // ← Business customer ID
+      "type": "business",
+      "name": "Acme Corp",
+      "email": null,  // Business has no email
+    },
+    "subscription": {
+      "id": "sub_456",
+      "customer_id": "cust_acme",  // ← Belongs to business
+      "product_id": "prod_theme_pro",
+      "status": "active",
+      "seats": 10
+    }
+  }
+}
+```
+
+---
+
+#### D.2: Querying Business Customer Data
+
+**Get business customer with members**:
+
+```http
+GET /v1/customers/cust_acme?include=members
+```
+
+```json
+{
+  "id": "cus_business_xyz789",
+  "type": "business", // new attribute
+  "name": "Acme Corp",
+  "active_subscriptions": [
+    {
+      "id": "sub_456",
+      "product_id": "prod_theme_pro",
+      "status": "active",
+      "seats": 10
+    }
+  ],
+  "members": [
+    {
+      "id": "member_1",
+      "customer": {
+        "id": "cust_alice",
+        "email": "alice@acme.com",
+        "name": "Alice"
+      },
+      "role": "admin",
+      "is_active": true
+    },
+    {
+      "id": "member_2",
+      "customer": {
+        "id": "cus_individual_ghi789",
+        "email": "dev@acme.com",
+        "name": "Bob Smith"
+      },
+      "role": "member",
+      "is_active": true
+    }
+  ]
+}
+```
+
+**List all orders for business**:
+
+```http
+GET /v1/orders?customer_id=cust_acme
+```
+
+```json
+{
+  "data": [
+    {
+      "id": "order_789",
+      "customer_id": "cust_acme",
+      "amount": 49900,
+      "created_at": "2025-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### D.3: Event Ingestion for Metered Billing
+
+**Scenario**: Bob (member of Acme) generates an API call that should bill Acme's subscription.
+
+**Approach A: Using subscription_id (RECOMMENDED)**
+
+```http
+POST /v1/events
+{
+  "name": "api.request",
+  "customer_id": "cust_bob",
+  // nothing else is needed as bob is only a member of acme
+  "properties": {
+    "endpoint": "/v1/themes",
+    "method": "POST"
+  }
+}
+```
+
+If bob is a member of two businesses, then an error will be thrown and XXX needs to be specified.
+
+---
+
+#### D.4: Member Management
+
+**Add a new member to Acme Corp**:
+
+```http
+POST /v1/customers/cust_acme/members
+{
+  "email": "petru@acme.com",
+  "role": "member"
+}
+```
+
+**Response**:
+```json
+{
+  "id": "member_2",
+  "business_customer_id": "cust_acme",
+  "individual_customer": {
+    "id": "cus_individual_ghi789",  // Auto-created
+    "email": "dev@acme.com",
+    "type": "individual",
+  },
+  "role": "member",
+  "is_active": true,
+  "invited_at": "2025-01-20T10:00:00Z"
+}
+```
+
+---
+
+#### D.5: Individual Who Is Both Member AND Customer
+
+**Scenario**: Jane (jane@acme.com) is:
+1. Billing manager for Acme Corp (member)
+2. Individual customer with her own personal subscription
+
+**Her customer profile**:
+```json
+{
+  "id": "cust_jane",
+  "type": "individual",
+  "email": "jane@acme.com",
+  "name": "Jane Doe",
+  "active_subscriptions": [
+    {
+      "id": "sub_personal_123",  // Her personal subscription
+      "product_id": "prod_theme_basic"
+    }
+  ],
+  "memberships": [
+    {
+      "business_customer_id": "cust_acme",
+      "role": "admin"
+    }
+  ]
+}
+```
+
+**Dashboard behavior**:
+- Jane appears in **main customer list**
+- Jane appears in **Acme Corp's member list** (because she's a member)
+- Two distinct contexts: individual purchaser AND business member
+
+---
+
+
 ## Open Questions
 
-1. **WorkOS Integration**: Will this work for WorkOS?
+1. **WorkOS Integration**: Will this work for WorkOS authentication and directory sync?
+2. **Event Attribution Edge Cases**: How do we handle events when a user is a member of multiple businesses with different subscriptions?
