@@ -5,7 +5,7 @@ description: "How we manage issues and projects using GitHub"
 
 ## Workflow
 
-One GitHub Project called **Backlog** with issues from:
+We have one GitHub Project called **Backlog** with issues from:
 
 | **Repo**              | **Visibility** | **Purpose**                                                                                                 |
 | --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------  |
@@ -14,18 +14,20 @@ One GitHub Project called **Backlog** with issues from:
 
 Making it easy to coordinate our efforts in public with some exceptions in `polar-internal` only available to the team.
 
-**Steps:**
-1. Backlog: all issues that are not assigned to anyone
-2. Next: the top 5 issues to be implemented by each engineer.
-3. In Progress: issues that are assigned and in progress by someone
-4. Done: issues that are completed
-
 ### Issue Types
 
-We will use two primary issue types:
+We currently have four issue types:
+
+**Bug**
+- Community or team reported bugs, i.e genuine "issues"
+
+**Discussion**
+- Our version of GitHub Discussions, but in issue form – better support across third-party tools (Plain, Stilla etc)
+- Discuss feature requests from the community.
+- Community upvotes
 
 **Feature**
-- Roadmap features that typically take more than a week to plan, design and implement, e.g Wallets, Insights, Seats.
+- Epics or features that require 1+ week. Often parent issue to sub-issues. E.g Wallets, Insights, Seats.
 - *Note: Create a `feat/<key>` label for grouping sub-tasks, e.g `feat/seats`*
 
 **Task**
@@ -47,35 +49,33 @@ We will use two primary issue types:
 | `contributor-friendly`  | Good and defined issues for new contributors                      |
 | `polar-team`            | Assigned for our internal team                                    |
 | `support-week`          | Issue assigned for an engineers support week                      |
-| `content`               | Content or guides for our blog, docs etc                          |
-
+| `support`               | Isues for our support team                                        |
 
 **Responsibilities:**
 - Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
 
 **Support week:**
-All engineers during on-call have support week. Focusing on prioritized bugs, enhancements or smaller feature requests oveheard from our community recently. Such issues are labeled `support-week`. We strive to have ~5 such issues at a time.
+- All engineers during on-call have support week. Focusing on prioritized bugs, enhancements or smaller feature requests oveheard from our community recently. Such issues are labeled `support-week`. We strive to have ~5 such issues at a time.
 
-## JIT Planning & Backlog
+## Backlog (JIT)
 
 We don't believe in long-term roadmaps. As a startup, we ship and adapt fast based on learnings and new insights. We have an internal, high-level, idea of bigger long-term initiatives and sequencing that need to come into play. However, historically, trying to map it into a 3-9 month roadmap has never been successful - it quickly becomes outdated. 
 
 So instead, we work by:
 1. Having a high-level North Star internally to formalize long-term vision
-2. JIT planning for the next 1-2 months ahead
+2. Just-in-time (JIT) planning for the next 1-2 months ahead
 
-### Feature Requests & Prioritization
+### Steps & Prioritization
 
 The main steps are the following:
 
 1. **Triage**: every new community issue or feature requests starts here
-2. **Discussion**: under team review and potentially 
+2. **Review**: team review and refinement of issue
 3. **Backlog**: issues we're aligned with, but have not planned 
 4. **Planned**: issues we plan to do within the next 1-2 months (JIT)
 5. **Next**: prioritized issues up next
 6. **In Progress**: the issues currently being worked on.
-7. **Review**: opened pull requests by other team members that needs review
-8. **Done**
+7. **Done**
 
 **Step 1: Triage**
 
@@ -88,10 +88,10 @@ The support engineer reviews issues weekly and asks:
 **Actions:**
 - If it's a support request: ask the user to write to support@polar.com and close the issue.
 - If unclear: Keep it in Triage until clarified, or close it after 14 days
-- If clear and it's a feature: Move to **Discussion**
-- If clear and it's a bug: Change the type to **Bug** and move to **Backlog**
+- If clear and it's a feature: Move to **Review**
+- If clear and it's a bug: Change the type to **Bug** and move to **Backlog**. Add `support-week` label in case it should be prioritized now.
 
-**Step 2: Discussion**
+**Step 2: Review**
 
 Discuss with the team whether we should implement it and estimate the size:
 - **Day**: <= Day of effort
@@ -131,16 +131,8 @@ Prioritized issues to work on next. Managed by all engineers individually.
 
 **Step 6: In Progress**
 
-Issues that are being actively worked on now.
+Issues that are being actively worked on now. Or in code review.
 
-**Step 7: Review**
-
-Opened pull requests by other team members that needs review.
-
-**Actions:**
-- Review pull requests and provide feedback
-- Merge pull requests if they are ready
-
-**Step 8: Done**
+**Step 7: Done**
 
 The issues is completed.
