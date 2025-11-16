@@ -31,12 +31,20 @@ To address the team's concerns and meet our goals, we will deprecate Linear and 
 
 ### The New Workflow
 
-We will adopt a standardized workflow across three GitHub Projects: Support, Team, and Roadmap.
+One GitHub Project called **Backlog** with issues from:
 
-| **Project** | **Visibility** | **Purpose**                                                                                     |
-| ----------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| **Public** | 🟢 Public      | Customer-facing issues: bugs, small feature requests, and support tickets, and Roadmap           |
-| **Team**    | 🔒 Private     | Internal tasks and engineering work using two repositories (`polar` and `polar-internal`)    |
+| **Repo**              | **Visibility** | **Purpose**                                                                                                 |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------  |
+| **polar**             | 🟢 Public      | Default to public for all our features, tasks and bugs                                                      |
+| **polar-internal**    | 🔒 Private     | Internal tasks we need to keep private, e.g customer-specific data, internal ops or surprise launches       |
+
+Making it easy to coordinate our efforts in public with some exceptions in `polar-internal` only available to the team.
+
+**Steps:**
+1. Backlog: all issues that are not assigned to anyone
+2. Next: the top 5 issues to be implemented by each engineer.
+3. In Progress: issues that are assigned and in progress by someone
+4. Done: issues that are completed
 
 ### Issue Types
 
@@ -70,27 +78,8 @@ We will use two primary issue types:
 | `polar-team`            | Assigned for our internal team                                    |
 
 
-
-## Workflow: Team Project
-
-The Team project is what we'll use daily as engineers to track our initiatives and tasks. This project shows:
-
-1. Features and Tasks we are currently working on
-2. The backlog of remaining work
-
-
-**Steps:**
-1. Backlog: all issues that are not assigned to anyone
-2. Next: the top 5 issues to be implemented by each engineer.
-3. In Progress: issues that are assigned to someone
-4. Done: issues that are completed
-
 **Responsibilities:**
 - Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
-
-**Repositories:**
-- Most issues will be public under the `polarsource/polar` repository and with the `#polar-team` label.
-- Private tasks or initiatives should be created under `polarsource/polar-internal`
 
 ## Workflow: Support
 
