@@ -490,8 +490,12 @@ Authorization: Bearer polar_secret_...
 {
   "name": "Acme Corp",
   "external_id": "acme_001",
-  "organization_id": "org_abc123"
-  // No email required for business
+  "organization_id": "org_abc123",
+  owner: {
+    email: 'alice@example.com',
+    name: 'Alice Smith',
+    externalId: 'external_alice'
+  }
 }
 ```
 
@@ -501,7 +505,14 @@ Authorization: Bearer polar_secret_...
   "id": "cust_acme_123",
   "name": "Acme Corp",
   "email": null,
-  "beneficiaries": []  // Empty initially
+  "beneficiaries": [
+    {
+      "id": "ben_alice_456",
+      "email": "alice@example.com",
+      "name": "Alice Smith",
+      "role": "admin"
+    }
+  ]
 }
 ```
 
