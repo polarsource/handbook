@@ -473,6 +473,35 @@ Imagine that before we had a seat based subscription with:
 - Alice being the billing manager and a seat holder
 - Ben being a seat holder
 
+
+##### 1. Customer API + Member API
+
+Given the example above, we will have the following schema on our database:
+
+1. Customer Alice:
+  1. Member Alice (owner)
+  2. Member Bob (member)
+2. Customer Bob (new customer with no subscriptions and nothing attached to him):
+  1. Member Bob (owner)
+
+**Before** (current):
+```typescript
+// Seat holder's customer_id
+await polar.customers.get([{
+  externalCustomerId: "cust_ben_123",
+}]);
+```
+
+**After** (new - required):
+```typescript
+await polar.members.get([{
+  externalCustomerId: "cust_alice_123",  // The customer who pays
+  externalMemberId: "cust_ben_123",    // The member of the business
+}]);
+```
+
+**Why**: Previously, `externalCustomerId` pointed to Ben, a seat holder (a separate customer). Now you should use the members to get the data of Ben.
+
 ##### 1. Event Ingestion API
 
 **Before** (current):
@@ -523,6 +552,38 @@ const session = await polar.customerSessions.create({
 
 ---
 
+##### 3. Benefit grants
+
+**Before** (current):
+```typescript
+const session = await polar.benefits.grants({
+  externalCustomerId: "cust_ben_123"
+});
+```
+
+**After** (new - required):
+```typescript
+const session = await polar.benefits.grants({
+  externalCustomerId: "cust_alice_123",
+  externalMemberId: "cust_ben_123"
+});
+```
+
+##### 3. Other endpoints
+
+All the other endpoints where a customerId/externalCustomerId are you passing you will need to:
+
+1. Make sure that the customerId or externalCustomerId points to the customerId/externalCustomerId of the billing manager
+2. Pass the `externalMemberId` alongside `externalCustomerId`
+
+Verify the following endpoints:
+
+1. GET: `/v1/customers`.
+2. GET: `/v1/customers/{customerId}`.
+2. PATCH: `/v1/customers/{customerId}`.
+2. DELETE: `/v1/customers/{customerId}`
+... TODO
+
 #### Migration Checklist
 
 Use this checklist to ensure your integration is updated:
@@ -531,17 +592,12 @@ Use this checklist to ensure your integration is updated:
   - TypeScript: `npm install @polar-sh/sdk@latest`
   - Python: `pip install --upgrade polar-sdk`
 
-- [ ] **Update event ingestion code**
+- [ ] **Update code**
   - [ ] Change `customer_id` from seat holder customer to billing customer
   - [ ] Add `member_id` parameter for all B2B events
-  - [ ] Test event attribution in staging environment
-
-- [ ] **Update customer portal integration**
-  - [ ] Pass `customer_id` and `member_id` when generating portal links for B2B customers
-  - [ ] Ensure billing managers can still access company billing information
-  - [ ] Test portal access for both billing managers and team members
 
 - [ ] **Monitor after migration**
+  - [ ] Test that you can log inside customer portal
   - [ ] Check error rates in your application logs
   - [ ] Confirm billing accuracy for B2B customers
 
