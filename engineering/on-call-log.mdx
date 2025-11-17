@@ -10,6 +10,32 @@ When everything is running smoothly, the on-call engineer can handle maintenance
 
 The goal of this rolling log is to ease handover between on-call for unresolved issues, and keep a log of what's been handled recently.
 
+## Week of 2025-11-10
+
+On-call: Jesper Bränn
+
+### Incidents
+
+#### 2025-11-12
+
+The sandbox environment hit Stripe's rate limit for the Tax API. It was escalated to Stripe, got increased and resolved itself due to time. The sandbox was updated to swallow tax calculation errors to avoid this breaking the environment in the future.
+We now have alerts and a status page configured for the sandbox environment.
+
+#### 2025-11-14
+
+Running out of memory continuously on the workers, causing a crash loop after getting an influx of exceptions in the processing of them. [Read more discussion](https://polar-olw4768.slack.com/archives/C09T5UDPF2Q). Potentially related to the Sentry integration in Dramatiq being reenabled. We have now disabled it again which can be monitored if this continues to happen or if it stops now.
+
+
+#### 2025-11-15
+
+Webhooks were slow to process. Most likely due to an overload of other events causing a delay in processing. [Read more details](https://polar-olw4768.slack.com/archives/C093CJXJXPT/p1763221839002159).
+
+
+### Maintenance
+
+- Sped up the metrics endpoint after being notified of >15s response times. We are now almost back to where we were before the additional metrics being added from Oct 23 going forward in terms of number of slow requests (>5s).
+
+
 ## Week of 2025-10-20
 
 On-call: Pieter Beulque
