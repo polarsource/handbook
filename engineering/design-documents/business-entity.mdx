@@ -327,97 +327,44 @@ During the migration period, if a bug is found or a merchant complaint, disable 
    - Add table: `members(id, customer_id FK, email, name, external_id, role, created_at, updated_at)`
    - Indexes: `customer_id`, `(customer_id, email)` UNIQUE, `(customer_id, external_id)` UNIQUE
 
-2. **Add member_id columns to usage tables**
-   - `benefit_grants.member_id`, `events.member_id`, `customer_sessions.member_id`, `customer_seats.member_id` (all nullable initially)
-
 3. **Add feature flag infrastructure**
    - Organization-level feature flag: `member_model_enabled` (default: false)
 
+### Phase 1: Customer
+**Goal**: Customer onboarding should create members. Expose members to customers API.
 
-### Phase 2: Service Layer 
+### Phase 2: Benefits
+**Goal**: benefits should be granted to members.
 
-**Goal**: Backend supports both models simultaneously via feature flag
+### Phase 3: Member Management
+**Goal**: Member management should support CRUD operations.
 
-1. **Implement Member service & repository**
-   - CRUD operations: create, get, list, update members for a customer
+### Phase 4: Customer Portal
+**Goal**: Member should be able to authenticate with customer portal and see their benefits. Billing managers and owners should be able to manage members.
 
-6. **Update Customer service for auto-member creation**
-   - When creating B2C customer, auto-create default member (if flag enabled)
+### Phase 5: Dashboard
+**Goal**: The dashboard should display member-related information. Benefits should point to members. Members should be shown for B2B customers only.
 
-7. **Add member resolution helper**
-   - `resolve_member(customer_id) → member_id` for backward compatibility
+### Phase 6: Event ingestion
+**Goal**: Event ingestion should support members. CustomerMeter should be the aggregation of all member events and a new MemberEventMeter should be created.
 
-8. **Update BenefitGrant service**
-   - Support both `customer_id` (resolve to member) and `member_id` direct assignment
+### Phase 7: Seats
+**Goal**: Seats should point to members.
 
-9. **Update Event service**
-   - Accept both `customer_id` and `member_id`, prefer member when provided
+### Phase 8: Webhooks
+**Goal**: Webhooks should include member information. Create webhooks for member events.
 
-10. **Update CustomerSession service**
-    - Support authentication via member_id, maintain customer_id backward compat
+### Phase 9: Adapters
+**Goal**: Adapters should work out of the box with the member model.
 
-11. **Update CustomerSeat service**
-    - Link seats to members instead of customers (when flag enabled)
+### Phase 10: Mobile app
+**Goal**: Mobile app should work out of the box with the member model.
 
-### Phase 3: API & Webhooks
+### Phase 11: Documentation
+**Goal**: Document member model and migration process.
 
-**Goal**: API accepts new parameters, webhooks include member data
-
-1. **Update API schemas (Pydantic)**
-    - Add `member_id` optional field to event creation, customer session creation, benefit grant queries
-
-13. **Update API endpoints**
-    - `/v1/events` accepts `member_id`, `/v1/customer-sessions` accepts `member_id`, `/v1/customers/{id}/members` CRUD endpoints
-
-14. **Update webhook payloads**
-    - Include `members` array in customer object, include `member_id` in event/grant webhooks
-
-
-### Phase 4: Migration Scripts
-
-**Goal**: Automated migration for B2C and B2B customers
-
-1. **Write B2C migration script**
-    - For each customer without members, create default member (idempotent)
-
-17. **Write B2B/seat migration script**
-    - Transform seat holders to members, migrate usage data (see Migration Plan)
-
-### Phase 5: Customer Portal & Testing
-
-**Goal**: Customer portal supports member model, full test coverage
-
-1. **Update customer portal authentication**
-    - Support member-based sessions, show member context in UI (when flag enabled)
-
-21. **Update customer portal UI for B2B**
-    - Show list of members for billing managers, allow seat assignment to members
-
-### Phase 6: Rollout & Monitoring
-
-**Goal**: Gradual production rollout with monitoring
-
-25. **Run B2C migration script in production**
-    - Schema changes live, feature flag off, zero customer impact
-
-26. **Run B2C migration script in production**
-    - Create default members for all customers (batched, monitor for errors)
-
-27. **Enable feature flag for internal testing**
-    - Test on Polar's own organization first, validate no regressions
-
-28. **Enable feature flag globally for B2C customers**
-    - Monitor error rates, customer support tickets, billing accuracy
-
-29. **Coordinate with B2B/seat merchants**
-    - Send migration guide 2 weeks in advance, schedule migration windows with each merchant
-
-30. **Run B2B migration scripts per merchant**
-    - Migrate one merchant at a time, enable flag for their org, validate with merchant
-
-31. **Monitor & iterate**
-    - Track metrics: API error rates, webhook delivery, customer portal logins, support tickets
-    
+### Phase 12: Rollout
+**Goal**: Rollout member model to production for B2C and B2B customers. Migrate existing B2B customers to member model.
 
 ---
 
@@ -578,11 +525,31 @@ All the other endpoints where a customerId/externalCustomerId are you passing yo
 
 Verify the following endpoints:
 
+**Customer endpoints**
+The will work the same for billing managers, but members will not be there.
+
 1. GET: `/v1/customers`.
 2. GET: `/v1/customers/{customerId}`.
 2. PATCH: `/v1/customers/{customerId}`.
 2. DELETE: `/v1/customers/{customerId}`
-... TODO
+2. GET: `/v1/customers/external/{externalId}`.
+2. PATCH: `/v1/customers/external/{externalId}`.
+2. DELETE: `/v1/customers/external/{externalId}`
+
+**Customer Meters**
+
+The customer meter will point to the billing manager, so it will be the meter aggregated as a business.
+
+We will create a new endpoint to get the meters for members.
+
+**Seats**
+
+The response of seats will contain the `member` entity. `customer_id` will be removed.
+
+1. POST: `/v1/seats`: we will need to pass the `mail`, `externalMemberId`, `memberId`, along with `subscriptionId`
+2. GET: `/v1/seats/{seatId}`
+2. PATCH: `/v1/seats/{seatId}`.
+2. DELETE: `/v1/seats/{seatId}`
 
 #### Migration Checklist
 
