@@ -5,26 +5,17 @@ description: "How we manage issues and projects using GitHub"
 
 ## Workflow
 
-We have one GitHub Project called **Backlog** with issues from:
+### GitHub Issues
 
-| **Repo**              | **Visibility** | **Purpose**                                                                                                 |
-| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------  |
-| **polar**             | 🟢 Public      | Default to public for all our features, tasks and bugs                                                      |
-| **polar-internal**    | 🔒 Private     | Internal tasks we need to keep private, e.g customer-specific data, internal ops or surprise launches       |
-
-Making it easy to coordinate our efforts in public with some exceptions in `polar-internal` only available to the team.
-
-### Issue Types
-
-We currently have four issue types:
-
-**Bug**
-- Community or team reported bugs, i.e genuine "issues"
+We currently have four issue types. Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
 
 **Discussion**
 - Our version of GitHub Discussions, but in issue form – better support across third-party tools (Plain, Stilla etc)
 - Discuss feature requests from the community.
-- Community upvotes
+- Community can upvote, discuss and add additional context
+
+**Bug**
+- Community or team reported bugs, i.e genuine "issues"
 
 **Feature**
 - Epics or features that require 1+ week. Often parent issue to sub-issues. E.g Wallets, Insights, Seats.
@@ -38,36 +29,67 @@ We currently have four issue types:
 **No type**
 - New issues that need to be triaged
 
-### Issue Labels
+<Info>
+**Should I create an issue for everything?**
 
-| Label                   | Use case                                                          |
-| -----                   | --------                                                          |
-| `feat/<key>`            | Group tasks by a feature grouping                                 |
-| `bug`                   | An error in the service                                           |
-| `votes-needed`          | Community voting for future roadmaps.                             |
-| `community-request`     | Feature/task requested by the community                           |
-| `contributor-friendly`  | Good and defined issues for new contributors                      |
-| `polar-team`            | Assigned for our internal team                                    |
-| `support-week`          | Issue assigned for an engineers support week                      |
-| `support`               | Isues for our support team                                        |
+No. Focus on shipping fast. Helpful to create an issue for planning or keeping
+track? Do it. Otherwise, ship vs. satisfy processes.
+</Info>
 
-**Responsibilities:**
-- Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
+#### Core Labels
 
-**Support week:**
-- All engineers during on-call have support week. Focusing on prioritized bugs, enhancements or smaller feature requests oveheard from our community recently. Such issues are labeled `support-week`. We strive to have ~5 such issues at a time.
+| Label                   | Use case                                                                 |
+| -----                   | --------                                                                 |
+| `feat/<key>`            | Group tasks by a feature grouping                                        |
+| `contributor-friendly`  | Good and defined issues for new contributors                             |
+| `polar-team`            | Reserved for our internal team                                           |
+| `support-week`          | Issue assigned for an engineers support week (see Support Week below)    |
+| `support`               | Isues for our support team                                               |
 
-## Backlog (JIT)
+<Note>
+**Support & On-call Week:**
 
-We don't believe in long-term roadmaps. As a startup, we ship and adapt fast based on learnings and new insights. We have an internal, high-level, idea of bigger long-term initiatives and sequencing that need to come into play. However, historically, trying to map it into a 3-9 month roadmap has never been successful - it quickly becomes outdated.
+All engineers rotate on-call. During this week, they also focus on the top <= 5 `support-week` issues.
+
+Community feedback and requests are continuously an integral part of our backlog and
+planning. However, this week ensures we have someone running point on lower hanging fruits or
+bugs that our community has raised recently as well.
+</Note>
+
+## GitHub Project & Backlog (JIT)
+
+We don't believe in long-term roadmaps. As a startup, we ship and adapt fast based on learnings and new insights.
+We have an internal, high-level, idea of bigger long-term initiatives and sequencing that need to come into play.
+However, historically, trying to map it into a 3-9 month roadmap has never been successful - it quickly becomes outdated.
 
 So instead, we work by:
 1. Having a high-level North Star internally to formalize long-term vision
-2. Just-in-time (JIT) planning for the next 1-2 months ahead
+2. Maintain one (1) centralized GitHub Project and backlog that we continuously triage
+3. Do just-in-time (JIT) planning for the next 1-2 months ahead (`Planned` vs. `Backlog`)
 
-### Steps & Prioritization
+We use the GitHub Project called **Backlog** for this and ingest issues from:
 
-The main steps are the following:
+| **Repo**              | **Visibility** | **Purpose**                                                                                                 |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------  |
+| **polar**             | 🟢 Public      | Default to public for all our features, tasks and bugs                                                      |
+| **polar-internal**    | 🔒 Private     | Internal tasks we need to keep private, e.g customer-specific data, internal ops or surprise launches       |
+| **polar-adapters**    | 🟢 Public      | *Redirected/submitted to `polar`*                                                                           |
+
+Making it easy to coordinate our efforts in public with some exceptions in `polar-internal` only available to the team.
+
+### Prioritization
+
+<Note>
+**Planning Sessions**
+
+Our team huddles once each 6-8 weeks to stack rank high-level priorities based
+on:
+- Backlog and scoring (GitHub votes + Plain tickets associated)
+- Long-term vision
+- Growth opportunities
+</Note>
+
+Day-to-day the main steps are the following:
 
 1. **Triage**: every new community issue or feature requests starts here
 2. **Review**: team review and refinement of issue
@@ -76,6 +98,7 @@ The main steps are the following:
 5. **Next**: prioritized issues up next
 6. **In Progress**: the issues currently being worked on.
 7. **Done**
+
 
 **Step 1: Triage**
 
