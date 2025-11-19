@@ -3,104 +3,102 @@ title: "Project Management Workflow"
 description: "How we manage issues and projects using GitHub"
 ---
 
-## Context
+## Workflow
 
-We currently use both Linear and GitHub Issues to manage our work. The team has raised several concerns about this dual-system approach:
+### GitHub Issues
 
-1. **Unordered backlog**: The support person doesn't know which issues to prioritize.
-2. **Lack of transparency**: We need to be more transparent about our priorities and vision.
-3. **Workflow inconsistency**: Team members follow different workflows.
-4. **Tooling issues**:
-   - When viewing GitHub Issues, it's difficult to relate them to Linear issues.
-   - Linear and GitHub have different workflows. We have a CI action that automatically closes GitHub issues, which creates confusion.
-   - etc.
+We currently have four issue types. Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
 
-## Goals
+**Discussion**
+- Our version of GitHub Discussions, but in issue form – better support across third-party tools (Plain, Stilla etc)
+- Discuss feature requests from the community.
+- Community can upvote, discuss and add additional context
 
-This document aims to:
-
-1. Align the team under a single workflow
-2. Track all issues (customer-reported and internal) in one place
-3. Create a prioritized backlog for the support person
-4. Maintain a lightweight workflow
-5. Engage the community with a public roadmap and voting system
-
-## Solution: Unify on GitHub
-
-To address the team's concerns and meet our goals, we will deprecate Linear and consolidate all work tracking into GitHub using Issues and Projects.
-
-### The New Workflow
-
-We will adopt a standardized workflow across three GitHub Projects: Support, Team, and Roadmap.
-
-| **Project** | **Visibility** | **Purpose**                                                                                     |
-| ----------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| **Public** | 🟢 Public      | Customer-facing issues: bugs, small feature requests, and support tickets, and Roadmap           |
-| **Team**    | 🔒 Private     | Internal tasks and engineering work using two repositories (`polar` and `polar-internal`)    |
-
-### Issue Types
-
-We will use two primary issue types:
+**Bug**
+- Community or team reported bugs, i.e genuine "issues"
 
 **Feature**
-- Large chunks of work that typically take more than a week to plan, design, and implement. Wallets, Product Analytics, Seats are some examples.
-- Tags:
-  - `#votes-needed` - Feature not yet planned
-  - `#community-request` - Feature requested by the community
-  - `#polar-team` - Feature created or that will be handled by the Polar team.
+- Epics or features that require 1+ week. Often parent issue to sub-issues. E.g Wallets, Insights, Seats.
+- *Note: Create a `feat/<key>` label for grouping sub-tasks, e.g `feat/seats`*
 
 **Task**
-- A deliverable that needs to be completed. Can be a sub-issue of a feature or standalone
-- Tags:
-  - `#bug` - An error in the system
-  - `#support` - A support task where a customer requested help
-  - `#votes-needed` - A small feature that hasn't been planned yet
-  - `#community-request` - A feature requested by the community
-  - `#contributor-friendly` - Tasks the community can participate in (support person should review these)
+- A smaller deliverable (\<= 1 week) that needs to be completed.
+- *Note: Sub-issue of a bigger roadmap feature? Add `feat/<key>` as the label
+  for grouping.*
 
 **No type**
 - New issues that need to be triaged
 
-## Workflow: Team Project
+<Info>
+**Should I create an issue for everything?**
 
-The Team project is what we'll use daily as engineers to track our initiatives and tasks. This project shows:
+No. Focus on shipping fast. Helpful to create an issue for planning or keeping
+track? Do it. Otherwise, ship vs. satisfy processes.
+</Info>
 
-1. Features and Tasks we are currently working on
-2. The backlog of remaining work
+#### Core Labels
 
+| Label                   | Use case                                                                 |
+| -----                   | --------                                                                 |
+| `feat/<key>`            | Group tasks by a feature grouping                                        |
+| `contributor-friendly`  | Good and defined issues for new contributors                             |
+| `polar-team`            | Reserved for our internal team                                           |
+| `support-week`          | Issue assigned for an engineers support week (see Support Week below)    |
+| `support`               | Isues for our support team                                               |
 
-**Steps:**
-1. Backlog: all issues that are not assigned to anyone
-2. Next: the top 5 issues to be implemented by each engineer.
-3. In Progress: issues that are assigned to someone
-4. Done: issues that are completed
+<Note>
+**Support & On-call Week:**
 
-**Responsibilities:**
-- Every engineer is responsible for creating issues, prioritizing them, and keeping them clean that are related to the project that they lead. They should also ensure that the issues are assigned to the right person and that the status is updated regularly.
+All engineers rotate on-call. During this week, they also focus on the top ~3-5 `support-week` issues.
 
-**Repositories:**
-- Most issues will be public under the `polarsource/polar` repository and with the `#polar-team` label.
-- Private tasks or initiatives should be created under `polarsource/polar-internal`
+Community feedback and requests are continuously an integral part of our backlog and
+planning. However, this week ensures we have someone running point on lower hanging fruits or
+bugs that our community has raised recently as well.
+</Note>
 
-## Workflow: Support
+## GitHub Project & Backlog (JIT)
 
-The Support workflow is more complex as it requires community interaction. We'll start simple by categorizing all issues into three types:
+We don't believe in long-term roadmaps. As a startup, we ship and adapt fast based on learnings and new insights.
+We have an internal, high-level, idea of bigger long-term initiatives and sequencing that need to come into play.
+However, historically, trying to map it into a 3-9 month roadmap has never been successful - it quickly becomes outdated.
 
-- **Bug**: Something is broken and needs fixing. We will use the `Task` type and the `bug` label.
-- **Feature Request**: A new capability or improvement. We will use the `Feature` or `Task` depending on the size, type and `vote-needed` label.
-- **Support**: A user needs help or guidance. Issue will be closed and asked to write to support@polar.com.
+So instead, we work by:
+1. Having a high-level North Star internally to formalize long-term vision
+2. Maintain one (1) centralized GitHub Project and backlog that we continuously triage
+3. Do just-in-time (JIT) planning for the next 1-2 months ahead (`Planned` vs. `Backlog`)
 
-### Support Process Steps
+We use the GitHub Project called **Backlog** for this and ingest issues from:
 
-The main steps are the following:
+| **Repo**              | **Visibility** | **Purpose**                                                                                                 |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------  |
+| **polar**             | 🟢 Public      | Default to public for all our features, tasks and bugs                                                      |
+| **polar-internal**    | 🔒 Private     | Internal tasks we need to keep private, e.g customer-specific data, internal ops or surprise launches       |
+| **polar-adapters**    | 🟢 Public      | *Redirected/submitted to `polar`*                                                                           |
 
-1. Triage: every new issue will be where
-2. Discussion: under team review if we should implement it or not
-3. Backlog: issues agreed to be implemented by the team.
-4. Next: the top 10 issues to be implemented by the support engineer.
-5. In Progress: the issues currently working on by the support engineer.
-7. Review: opened pull requests by other team members that needs review
-8. Done: the issues completed by the support engineer.
+Making it easy to coordinate our efforts in public with some exceptions in `polar-internal` only available to the team.
+
+### Prioritization
+
+<Note>
+**Planning Sessions**
+
+Our team huddles once each 6-8 weeks to stack rank high-level priorities based
+on:
+- Backlog and scoring (GitHub votes + Plain tickets associated)
+- Long-term vision
+- Growth opportunities
+</Note>
+
+Day-to-day the main steps are the following:
+
+1. **Triage**: every new community issue or feature requests starts here
+2. **Review**: team review and refinement of issue
+3. **Backlog**: issues we're aligned with, but have not planned
+4. **Planned**: issues we plan to do within the next 1-2 months (JIT)
+5. **Next**: prioritized issues up next
+6. **In Progress**: the issues currently being worked on.
+7. **Done**
+
 
 **Step 1: Triage**
 
@@ -113,16 +111,18 @@ The support engineer reviews issues weekly and asks:
 **Actions:**
 - If it's a support request: ask the user to write to support@polar.com and close the issue.
 - If unclear: Keep it in Triage until clarified, or close it after 14 days
-- If clear and it's a feature: Move to **Discussion**
-- If clear and it's a bug: Change the type to **Bug** and move to **Backlog**
+- If clear and it's a feature: Move to **Review**
+- If clear and it's a bug: Change the type to **Bug** and move to **Backlog**. Add `support-week` label in case it should be prioritized now.
 
-**Step 2: Discussion**
+**Step 2: Review**
 
 Discuss with the team whether we should implement it and estimate the size:
-- **S**: 1 day
-- **M**: 4 days or less
-- **L**: Less than 2 weeks
-- **XL**: Larger than 2 weeks
+- **Day**: \<= Day of effort
+- **Week**: \<= Week of effort
+- **Sprint**: \<= 2 Weeks of effort
+- **Month**: Several weeks of effort. Bigger than 1 month? Let's try to break it into chunks.
+
+Combined with clarifying how we would approach it at a high-level. E.g we understand the underlying desire with the feature request, but might have other ideas on how to best tackle it.
 
 Post the following Slack message in #support:
 
@@ -130,7 +130,7 @@ Post the following Slack message in #support:
 🆕 New Issue: [Title]
 🔗 [GitHub link]
 ❓ Should we do it?
-🗳️ Size: S (1d), M (<5d), L (<2 weeks), XL (more than 2 weeks)
+🗳️ Size: Day (1d), Week (<5d), Sprint (<2 weeks), Month (more than 2 weeks)
 ```
 
 **Actions:**
@@ -138,61 +138,24 @@ Post the following Slack message in #support:
 
 **Step 3: Backlog**
 
-The backlog contains all issues we've agreed to implement, sorted by creation time.
+The backlog contains all issues we're aligned on implementing, sorted by creation time.
 
-**Step 4: Next**
+**Step 4: Planned**
 
-The 10 most important issues to work on from the backlog. Priority is determined by:
+The backlog contains all issues we're aligned on implementing based on factors like:
 - Community votes
-- Support person's judgment
-- On-call engineer's input
+- Support feedback
+- Internal review and prioritization
+- Long-term vision: Balancing tablestakes vs. innovation
 
-**Step 5: In Progress**
+**Step 5: Next**
 
-The issues currently working on by the support engineer.
+Prioritized issues to work on next. Managed by all engineers individually.
 
-**Step 6: Review**
+**Step 6: In Progress**
 
-Opened pull requests by other team members that needs review.
-
-**Actions:**
-- Review pull requests and provide feedback
-- Merge pull requests if they are ready
+Issues that are being actively worked on now. Or in code review.
 
 **Step 7: Done**
 
-The issues completed by the support engineer.
-
-
-## Migration Plan
-
-**Decommission Linear**
-- Linear will be phased out over two weeks
-- All new issues must be created in GitHub starting immediately
-
-**Migrate Existing Issues**
-- Public issues already exist in GitHub
-- Private issues will be created under the `polar-internal` repository
-
-**Support Resources**
-- A quick-start guide will be provided to ensure smooth onboarding
-
-## FAQs
-
-**What if a private task is needed?**
-
-Create it directly in the `polar-internal` repository and mark it as private.
-
-**How will voting work?**
-
-Use the 👍 GitHub reaction on issues to vote.
-
-**How are sizes stored**
-
-We will use a new project field called "Size" to store the size of each Task.
-
-## Next Steps
-
-- **Immediate**: Start creating all new issues directly in GitHub
-- **Next week**: Complete migration of existing issues from Linear
-- **Ongoing**: Gather feedback and continuously improve the workflow
+The issues is completed.
