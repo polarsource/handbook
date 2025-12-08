@@ -53,7 +53,8 @@
               "engineering/design-documents/subscription-retries",
               "engineering/design-documents/wallets",
               "engineering/design-documents/multi-currency",
-              "engineering/design-documents/business-entity"
+              "engineering/design-documents/business-entity",
+              "engineering/design-documents/event-storage"
             ]
           },
           "engineering/tech-notes",
