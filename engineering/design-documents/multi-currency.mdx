@@ -3,7 +3,7 @@
 
 **Created**: 2025-11-07
 
-**Last Updated**: 2025-11-10
+**Last Updated**: 2026-01-08
 
 </Info>
 
@@ -220,3 +220,24 @@ Whenever we receive a payment in a presentment currency different than the suppo
 When issuing a refund, we'll issue it in the original presentment currency. If the exchange rate has changed since the original payment, we might have to withdwraw more money from the merchant's balance than the original payment amount (in settlement currency).
 
 For example, if a customer paid 100 EUR when the exchange rate was 1 EUR = 1.1 USD, the merchant received 110 USD. If we refund the customer later when the exchange rate is 1 EUR = 1.2 USD, we need to withdraw 120 USD from the merchant's balance to refund the customer.
+
+## Appendix A: currency selection at Checkout
+
+Since a single Product can now have price sets in different currencies, we need to define how the currency is selected at Checkout time.
+
+The proposal is to add a `currency` parameter to `CheckoutCreate`. It can take the following values:
+
+- A valid ISO currency code (e.g. `eur`, `gbp`, etc.): in this case, the Checkout session will use that currency if the Product has a price set in that currency; otherwise, it will return an error.
+- `auto` (the default):
+  1. Infer the customer's currency from their location (based on IP).
+  2. If the Product has a price set in the inferred currency, use that currency.
+  3. Otherwise, fall back to the Organization's default currency.
+  4. If the Product does not have a price set in the Organization's default currency, use the first available currency found in the Product's price sets.
+
+If the Checkout has several Products, when switching:
+
+1. Find a price set matching the currently selected currency.
+2. If not found, fall back to the Organization's default currency.
+3. If still not found, use the first available currency found in the Product's price sets.
+
+For Checkout Links, the `auto` behavior is applied.
