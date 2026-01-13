@@ -24,6 +24,9 @@
     "thumbsRating": true,
     "suggestEdit": true
   },
+  "contextual": {
+    "options": ["copy", "chatgpt", "claude"]
+  },
   "navigation": {
     "groups": [
       {
