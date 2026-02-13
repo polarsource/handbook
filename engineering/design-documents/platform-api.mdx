@@ -1,3 +1,8 @@
+---
+title: "Platform API"
+description: "Proposal for a Platform API to enable partners to create and manage Polar Organizations on behalf of their users."
+---
+
 <Info>
 **Status**: Draft
 
@@ -7,15 +12,13 @@
 
 </Info>
 
-# Platform API
-
-## Overview
+# Overview
 
 The Platform API enables partners to create and manage Polar Organizations on behalf of their users, allowing seamless integration of monetization features into third-party platforms. This document outlines the technical architecture, authentication flow, and claim process for the Platform API.
 
-## Core Entities
+# Core Entities
 
-### Platform Entity
+## Platform Entity
 
 A new `Platform` entity will be introduced to represent partners with access to the Platform API:
 
@@ -27,7 +30,7 @@ A new `Platform` entity will be introduced to represent partners with access to 
   - `created_at`: Timestamp of platform creation
   - `updated_at`: Timestamp of last update
 
-### Organization Enhancements
+## Organization Enhancements
 
 The existing `Organization` entity will be enhanced with platform-specific fields:
 
@@ -36,9 +39,9 @@ The existing `Organization` entity will be enhanced with platform-specific field
   - `platform_external_id` (nullable): The Organization's ID on the external platform
   - `platform_created_at` (nullable): Timestamp when the Organization was created via Platform API
 
-## Authentication Flow
+# Authentication Flow
 
-### OIDC-based Authentication
+## OIDC-based Authentication
 
 The Platform API uses an OIDC approach with JWT tokens for authentication:
 
@@ -48,11 +51,11 @@ The Platform API uses an OIDC approach with JWT tokens for authentication:
 4. **Validation**: Polar validates the JWT using the platform's public key
 5. **Access Token**: Polar returns an Organization Access Token
 
-### JWT Structure
+## JWT Structure
 
 We support two types of JWTs for different use cases:
 
-#### Organization JWT (for Organization Access Tokens)
+### Organization JWT (for Organization Access Tokens)
 
 Used when the platform wants to act on behalf of a specific organization:
 
@@ -70,7 +73,7 @@ Used when the platform wants to act on behalf of a specific organization:
 }
 ```
 
-#### Platform JWT (for Platform Access Tokens)
+### Platform JWT (for Platform Access Tokens)
 
 Used when the platform wants to perform platform-level operations:
 
@@ -92,11 +95,11 @@ Used when the platform wants to perform platform-level operations:
 - **Platform JWT**: Contains only platform claims (`sub` = `iss` = platform ID)
 - **Audience**: Different `aud` values determine token type
 
-### Token Validation Process
+## Token Validation Process
 
 The validation process differs based on the JWT type:
 
-#### Organization JWT Validation
+### Organization JWT Validation
 
 1. **JWT Validation**: Verify signature using platform's JWKS
 2. **Audience Check**: Ensure `aud` = `polar:platform-organization`
@@ -107,7 +110,7 @@ The validation process differs based on the JWT type:
    - Set `platform_id` and `platform_external_id`
 6. **Access Token Issuance**: Return Organization Access Token
 
-#### Platform JWT Validation
+### Platform JWT Validation
 
 1. **JWT Validation**: Verify signature using platform's JWKS
 2. **Audience Check**: Ensure `aud` = `polar:platform`
@@ -115,13 +118,13 @@ The validation process differs based on the JWT type:
 4. **Platform Verification**: Verify platform exists and is active
 5. **Access Token Issuance**: Return Platform Access Token with requested scopes
 
-## Organization Claim Flow
+# Organization Claim Flow
 
-### Purpose
+## Purpose
 
 The claim flow allows a User to take ownership of an Organization created via the Platform API, enabling KYC completion and financial setup.
 
-### Process
+## Process
 
 1. **Claim Token Generation**:
    - Platform calls `/api/platform/organizations/{platform_external_id}/claim_token`
@@ -142,13 +145,13 @@ The claim flow allows a User to take ownership of an Organization created via th
    - User sets up financial/payout details
    - Organization becomes fully active
 
-## Platform Access Tokens
+# Platform Access Tokens
 
-### Overview
+## Overview
 
 In addition to Organization Access Tokens, we introduce Platform Access Tokens that allow platforms to manage multiple organizations and perform platform-level operations.
 
-### Platform JWT Structure
+## Platform JWT Structure
 
 Platforms can authenticate using a dedicated Platform JWT:
 
@@ -170,7 +173,7 @@ Platforms can authenticate using a dedicated Platform JWT:
 - `aud` is `polar:platform` (vs `polar:platform-organization` for org-specific operations)
 - No organization-specific claims
 
-### Platform Access Token Capabilities
+## Platform Access Token Capabilities
 
 Platform Access Tokens enable:
 
@@ -179,7 +182,7 @@ Platform Access Tokens enable:
 - Accessing platform-level analytics and reporting
 - Managing platform configuration
 
-### Token Exchange for Platform Access
+## Token Exchange for Platform Access
 
 ```bash
 curl -X POST https://api.polar.sh/v1/oauth2/token \
@@ -190,24 +193,24 @@ curl -X POST https://api.polar.sh/v1/oauth2/token \
   }'
 ```
 
-## API Endpoints
+# API Endpoints
 
-### Platform Authentication
+## Platform Authentication
 
 - `POST /v1/oauth2/token` - Exchange JWT for access tokens
   - `grant_type: platform` with `aud: polar:platform` → Platform Access Token
   - `grant_type: platform` with `aud: polar:platform-organization` → Organization Access Token
 
-### Organization Management (Platform Access)
+## Organization Management (Platform Access)
 
 - `GET /api/platform/organizations/` - List all platform organizations (requires Platform Access Token)
 - `GET /api/platform/organizations/{platform_external_id}` - Get organization by external ID
 - `POST /api/platform/organizations/{platform_external_id}/claim_token` - Generate claim token
 
-### Organization Management (Organization Access)
+## Organization Management (Organization Access)
 
 - Standard Polar API endpoints (products, customers, subscriptions, etc.)
 
-## Appendix: Sandbox as a Platform
+# Appendix: Sandbox as a Platform
 
 Maybe a crazy idea, but we could consider the Polar Sandbox as a Platform on the Production environment. This would enable us to implement processes to automatically create an Organization in Production from a Sandbox!
